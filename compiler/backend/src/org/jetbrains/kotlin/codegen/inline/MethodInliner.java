@@ -54,6 +54,8 @@ public class MethodInliner {
 
     private final String errorPrefix;
 
+    private SourceMapper sourceMapper;
+
     private final JetTypeMapper typeMapper;
 
     private final List<InvokeCall> invokeCalls = new ArrayList<InvokeCall>();
@@ -80,7 +82,8 @@ public class MethodInliner {
             @NotNull InliningContext parent,
             @NotNull FieldRemapper nodeRemapper,
             boolean isSameModule,
-            @NotNull String errorPrefix
+            @NotNull String errorPrefix,
+            SourceMapper sourceMapper
     ) {
         this.node = node;
         this.parameters = parameters;
@@ -88,6 +91,7 @@ public class MethodInliner {
         this.nodeRemapper = nodeRemapper;
         this.isSameModule = isSameModule;
         this.errorPrefix = errorPrefix;
+        this.sourceMapper = sourceMapper;
         this.typeMapper = parent.state.getTypeMapper();
         this.result = InlineResult.create();
     }
@@ -142,7 +146,7 @@ public class MethodInliner {
         RemappingMethodAdapter remappingMethodAdapter = new RemappingMethodAdapter(resultNode.access, resultNode.desc, resultNode,
                                                                                    new TypeRemapper(currentTypeMapping));
 
-        InlineAdapter lambdaInliner = new InlineAdapter(remappingMethodAdapter, parameters.totalSize()) {
+        InlineAdapter lambdaInliner = new InlineAdapter(remappingMethodAdapter, parameters.totalSize(), sourceMapper) {
 
             private AnonymousObjectGeneration anonymousObjectGen;
             private void handleAnonymousObjectGeneration() {
@@ -215,7 +219,7 @@ public class MethodInliner {
                     MethodInliner inliner = new MethodInliner(info.getNode(), lambdaParameters,
                                                               inliningContext.subInlineLambda(info),
                                                               newCapturedRemapper, true /*cause all calls in same module as lambda*/,
-                                                              "Lambda inlining " + info.getLambdaClassType().getInternalName());
+                                                              "Lambda inlining " + info.getLambdaClassType().getInternalName(), null);
 
                     LocalVarRemapper remapper = new LocalVarRemapper(lambdaParameters, valueParamShift);
                     InlineResult lambdaResult = inliner.doInline(this.mv, remapper, true, info);//TODO add skipped this and receiver
@@ -318,13 +322,6 @@ public class MethodInliner {
             }
 
             @Override
-            public void visitLineNumber(int line, @NotNull Label start) {
-                if(isInliningLambda) {
-                    super.visitLineNumber(line, start);
-                }
-            }
-
-            @Override
             public void visitLocalVariable(
                     @NotNull String name, @NotNull String desc, String signature, @NotNull Label start, @NotNull Label end, int index
             ) {
@@ -378,7 +375,6 @@ public class MethodInliner {
         int index = 0;
 
         boolean awaitClassReification = false;
-        Set<LabelNode> possibleDeadLabels = new HashSet<LabelNode>();
 
         while (cur != null) {
             Frame<SourceValue> frame = sources[index];

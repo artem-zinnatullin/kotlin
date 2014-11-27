@@ -19,8 +19,13 @@ package org.jetbrains.kotlin.codegen;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlin.codegen.inline.FileMapping;
+import org.jetbrains.kotlin.codegen.inline.SMAPBuilder;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class AbstractClassBuilder implements ClassBuilder {
     protected static final MethodVisitor EMPTY_METHOD_VISITOR = new MethodVisitor(Opcodes.ASM5) {};
@@ -28,7 +33,10 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     private String thisName;
 
+    private List<FileMapping> fileMappings = new ArrayList<FileMapping>();
+
     private final JvmSerializationBindings serializationBindings = new JvmSerializationBindings();
+    private String sourceName;
 
     public static class Concrete extends AbstractClassBuilder {
         private final ClassVisitor v;
@@ -92,6 +100,9 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     @Override
     public void done() {
+        if (sourceName != null) {
+            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, fileMappings).build());
+        }
         getVisitor().visitEnd();
     }
 
@@ -111,7 +122,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     @Override
     public void visitSource(@NotNull String name, @Nullable String debug) {
-        getVisitor().visitSource(name, debug);
+        sourceName = name;
     }
 
     @Override
@@ -129,5 +140,10 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     public String getThisName() {
         assert thisName != null : "This name isn't set";
         return thisName;
+    }
+
+    @Override
+    public void addSMAP(FileMapping mapping) {
+        fileMappings.add(mapping);
     }
 }

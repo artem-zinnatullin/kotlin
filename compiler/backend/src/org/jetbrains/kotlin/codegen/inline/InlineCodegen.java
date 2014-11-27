@@ -81,6 +81,8 @@ public class InlineCodegen extends CallGenerator {
 
     private LambdaInfo activeLambda;
 
+    private SourceMapper sourceMapper;
+
     public InlineCodegen(
             @NotNull ExpressionCodegen codegen,
             @NotNull GenerationState state,
@@ -161,6 +163,7 @@ public class InlineCodegen extends CallGenerator {
             asmMethod = jvmSignature.getAsmMethod();
         }
 
+
         MethodNode node;
         if (functionDescriptor instanceof DeserializedSimpleFunctionDescriptor) {
             VirtualFile file = InlineCodegenUtil.getVirtualFileForCallable((DeserializedSimpleFunctionDescriptor) functionDescriptor, state);
@@ -169,13 +172,20 @@ public class InlineCodegen extends CallGenerator {
             if (node == null) {
                 throw new RuntimeException("Couldn't obtain compiled function body for " + descriptorName(functionDescriptor));
             }
+
+            sourceMapper = new SourceMapper(callElement.getContainingFile().getTextLength());
+            sourceMapper.visitSource(((SMAPMethodNode) node).getSource());
         }
         else {
             PsiElement element = DescriptorToSourceUtils.descriptorToDeclaration(functionDescriptor);
 
+
             if (element == null) {
                 throw new RuntimeException("Couldn't find declaration for function " + descriptorName(functionDescriptor));
             }
+
+            sourceMapper = new SourceMapper(element.getContainingFile().getTextLength());
+            sourceMapper.visitSource(element.getContainingFile().getName());
 
             node = new MethodNode(InlineCodegenUtil.API,
                                            getMethodAsmFlags(functionDescriptor, context.getContextKind()) | (callDefault ? Opcodes.ACC_STATIC : 0),
@@ -223,7 +233,8 @@ public class InlineCodegen extends CallGenerator {
                                                        callElement,
                                                        codegen.getParentCodegen().getClassName(), reifiedTypeInliner);
 
-        MethodInliner inliner = new MethodInliner(node, parameters, info, new FieldRemapper(null, null, parameters), isSameModule, "Method inlining " + callElement.getText()); //with captured
+        MethodInliner inliner = new MethodInliner(node, parameters, info, new FieldRemapper(null, null, parameters), isSameModule,
+                                                  "Method inlining " + callElement.getText(), sourceMapper); //with captured
 
         LocalVarRemapper remapper = new LocalVarRemapper(parameters, initialFrameSize);
 
