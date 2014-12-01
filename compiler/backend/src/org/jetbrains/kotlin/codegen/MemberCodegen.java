@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.codegen.context.ClassContext;
 import org.jetbrains.kotlin.codegen.context.CodegenContext;
 import org.jetbrains.kotlin.codegen.context.FieldOwnerContext;
+import org.jetbrains.kotlin.codegen.inline.FileMapping;
 import org.jetbrains.kotlin.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.kotlin.codegen.inline.NameGenerator;
 import org.jetbrains.kotlin.codegen.inline.ReifiedTypeParametersUsages;
@@ -462,8 +463,13 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         return parentCodegen;
     }
 
+
     @Override
     public String toString() {
         return context.toString();
+    }
+
+    public void addSMAP(FileMapping fm) {
+        v.addSMAP(fm);
     }
 }

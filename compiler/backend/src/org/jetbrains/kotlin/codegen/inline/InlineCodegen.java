@@ -265,6 +265,7 @@ public class InlineCodegen extends CallGenerator {
         adapter.accept(new InliningInstructionAdapter(codegen.v));
 
         addInlineMarker(codegen.v, false);
+        codegen.getParentCodegen().addSMAP(sourceMapper.getFileMapping());
 
         return result;
     }

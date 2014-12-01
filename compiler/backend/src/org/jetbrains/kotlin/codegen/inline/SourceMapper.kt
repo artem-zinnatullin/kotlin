@@ -21,10 +21,7 @@ import org.jetbrains.org.objectweb.asm.Label
 
 public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>) {
 
-    val header = """SMAP
-                    $source
-                    Kotlin
-                    *S Kotlin"""
+    val header = """SMAP\n\n$source\nKotlin\n*S Kotlin"""
 
     fun build(): String? {
         if (fileMappings.empty) {

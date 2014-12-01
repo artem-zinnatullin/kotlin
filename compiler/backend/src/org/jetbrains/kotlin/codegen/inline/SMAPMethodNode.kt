@@ -22,5 +22,5 @@ import org.jetbrains.org.objectweb.asm.Opcodes
 public class SMAPMethodNode(access: Int, name: String, desc: String, signature: String, exceptions: Array<String>?,
                             val source: String,
                             val debugger: String) :
-        MethodNode(access, name, desc, signature, exceptions) {
+        MethodNode(InlineCodegenUtil.API, access, name, desc, signature, exceptions) {
 }

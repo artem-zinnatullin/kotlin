@@ -271,6 +271,7 @@ public class MethodInliner {
 
         };
 
+
         node.accept(lambdaInliner);
 
         return resultNode;
