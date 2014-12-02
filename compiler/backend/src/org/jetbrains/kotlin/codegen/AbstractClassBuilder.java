@@ -33,7 +33,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     private String thisName;
 
-    private List<FileMapping> fileMappings = new ArrayList<FileMapping>();
+    private final List<FileMapping> fileMappings = new ArrayList<FileMapping>();
 
     private final JvmSerializationBindings serializationBindings = new JvmSerializationBindings();
     private String sourceName;

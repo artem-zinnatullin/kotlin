@@ -21,7 +21,7 @@ import org.jetbrains.org.objectweb.asm.Label
 
 public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>) {
 
-    val header = """SMAP\n\n$source\nKotlin\n*S Kotlin"""
+    val header = "SMAP\n$source\nKotlin\n*S Kotlin"
 
     fun build(): String? {
         if (fileMappings.empty) {
@@ -35,7 +35,7 @@ public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>
                           a + "${e.toSMAPFile(id++)}"
                       }
 
-        val fileMappings = "*L\n" +
+        val fileMappings = "*L" +
                       fileMappings.fold("") {(a, e) ->
                           a + "${e.toSMAPMapping()}"
                       }
@@ -73,13 +73,16 @@ class FileMapping(val name: String) {
     }
 
     fun toSMAPMapping(): String {
-        return "$id $name"
+        return lineMappings.fold("") {
+            (a, e) ->
+            "$a\n${e.toSMAP(id)}"
+        }
     }
 }
 
 class LineMapping(val source: Int, val dest: Int) {
 
-    fun toSMAP(): String {
-        return "$source:$dest"
+    fun toSMAP(fileId: Int): String {
+        return "$source#$fileId:$dest"
     }
 }
