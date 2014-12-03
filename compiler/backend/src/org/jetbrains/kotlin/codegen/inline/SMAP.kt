@@ -42,7 +42,6 @@ public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>
 
         return header + "\n" + fileIds +"\n" + fileMappings + "\n*E"
     }
-
 }
 
 public class SourceMapper(val lineNumbers: Int) {
@@ -57,13 +56,26 @@ public class SourceMapper(val lineNumbers: Int) {
 
     fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         iv.visitLineNumber(++currentOffset, start)
-        fileMapping!!.lineMappings.add(LineMapping(lineNumber, currentOffset))
+        fileMapping!!.addLineMapping(lineNumber, currentOffset)
     }
 
 }
 
+class SMAP(fileMappings: List<FileMapping>) {
+    var fileMappings: List<FileMapping> = arrayListOf()
+
+    class object {
+        val FILE_SECTION = "*F"
+
+        val LINE_SECTION = "*L"
+
+        val END = "*E"
+
+    }
+}
+
 class FileMapping(val name: String) {
-    val lineMappings = arrayListOf<LineMapping>()
+    private val lineMappings = arrayListOf<LineMapping>()
 
     var id = -1;
 
@@ -77,6 +89,10 @@ class FileMapping(val name: String) {
             (a, e) ->
             "$a\n${e.toSMAP(id)}"
         }
+    }
+
+    fun addLineMapping(source: Int, dest: Int) {
+        lineMappings.add(LineMapping(source, dest))
     }
 }
 
