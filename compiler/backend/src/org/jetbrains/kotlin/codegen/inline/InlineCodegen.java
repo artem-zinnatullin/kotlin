@@ -111,6 +111,11 @@ public class InlineCodegen extends CallGenerator {
         this.asFunctionInline = false;
 
         isSameModule = JvmCodegenUtil.isCallInsideSameModuleAsDeclared(functionDescriptor, codegen.getContext(), state.getOutDirectory());
+
+        Integer lineNumbers = CodegenUtil.getLineNumberForElement(callElement.getContainingFile(), true);
+        assert lineNumbers != null : "Couldn't extract line count in " + callElement.getContainingFile();
+
+        sourceMapper = new SourceMapper(lineNumbers);
     }
 
     @Override
@@ -122,11 +127,11 @@ public class InlineCodegen extends CallGenerator {
 
     @Override
     public void genCallInner(@NotNull CallableMethod callableMethod, @Nullable ResolvedCall<?> resolvedCall, boolean callDefault, @NotNull ExpressionCodegen codegen) {
-        MethodNode node = null;
+        SMAPAndMethodNode nodeAndSmap = null;
 
         try {
-            node = createMethodNode(callDefault);
-            endCall(inlineCall(node));
+            nodeAndSmap = createMethodNode(callDefault);
+            endCall(inlineCall(nodeAndSmap));
         }
         catch (CompilationException e) {
             throw e;
@@ -137,7 +142,7 @@ public class InlineCodegen extends CallGenerator {
             throw new CompilationException("Couldn't inline method call '" +
                                        functionDescriptor.getName() +
                                        "' into \n" + (element != null ? element.getText() : "null psi element " + this.codegen.getContext().getContextDescriptor()) +
-                                       (generateNodeText ? ("\ncause: " + InlineCodegenUtil.getNodeText(node)) : ""),
+                                       (generateNodeText ? ("\ncause: " + InlineCodegenUtil.getNodeText(nodeAndSmap != null ? nodeAndSmap.getNode(): null)) : ""),
                                        e, callElement);
         }
 
@@ -153,7 +158,7 @@ public class InlineCodegen extends CallGenerator {
     }
 
     @NotNull
-    private MethodNode createMethodNode(boolean callDefault) throws ClassNotFoundException, IOException {
+    private SMAPAndMethodNode createMethodNode(boolean callDefault) throws ClassNotFoundException, IOException {
         JvmMethodSignature jvmSignature = typeMapper.mapSignature(functionDescriptor, context.getContextKind());
 
         Method asmMethod;
@@ -164,20 +169,14 @@ public class InlineCodegen extends CallGenerator {
             asmMethod = jvmSignature.getAsmMethod();
         }
 
-        Integer lineNumbers = CodegenUtil.getLineNumberForElement(callElement.getContainingFile(), true);
-        assert lineNumbers != null : "Couldn't extract line count in " + callElement.getContainingFile();
-
-        MethodNode node;
+        SMAPAndMethodNode nodeAndSMAP;
         if (functionDescriptor instanceof DeserializedSimpleFunctionDescriptor) {
             VirtualFile file = InlineCodegenUtil.getVirtualFileForCallable((DeserializedSimpleFunctionDescriptor) functionDescriptor, state);
-            node = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(), asmMethod.getName(), asmMethod.getDescriptor());
+            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(), asmMethod.getName(), asmMethod.getDescriptor());
 
-            if (node == null) {
+            if (nodeAndSMAP == null) {
                 throw new RuntimeException("Couldn't obtain compiled function body for " + descriptorName(functionDescriptor));
             }
-
-            sourceMapper = new SourceMapper(lineNumbers);
-            sourceMapper.visitSource(((SMAPMethodNode) node).getSource());
         }
         else {
             PsiElement element = DescriptorToSourceUtils.descriptorToDeclaration(functionDescriptor);
@@ -187,10 +186,7 @@ public class InlineCodegen extends CallGenerator {
                 throw new RuntimeException("Couldn't find declaration for function " + descriptorName(functionDescriptor));
             }
 
-            sourceMapper = new SourceMapper(lineNumbers);
-            sourceMapper.visitSource(element.getContainingFile().getName());
-
-            node = new MethodNode(InlineCodegenUtil.API,
+            MethodNode node = new MethodNode(InlineCodegenUtil.API,
                                            getMethodAsmFlags(functionDescriptor, context.getContextKind()) | (callDefault ? Opcodes.ACC_STATIC : 0),
                                            asmMethod.getName(),
                                            asmMethod.getDescriptor(),
@@ -200,24 +196,32 @@ public class InlineCodegen extends CallGenerator {
             //for maxLocals calculation
             MethodVisitor maxCalcAdapter = InlineCodegenUtil.wrapWithMaxLocalCalc(node);
             MethodContext methodContext = context.getParentContext().intoFunction(functionDescriptor);
-            MemberCodegen<?> parentCodegen = codegen.getParentCodegen();
+            SMAP smap;
             if (callDefault) {
+                FakeMemberCodegen parentCodegen = new FakeMemberCodegen(codegen.getParentCodegen());
                 boolean isStatic = AsmUtil.isStaticMethod(context.getContextKind(), functionDescriptor);
                 FunctionCodegen.generateDefaultImplBody(
                         methodContext, jvmSignature, functionDescriptor, isStatic, maxCalcAdapter, DefaultParameterValueLoader.DEFAULT,
                         (JetNamedFunction) element, parentCodegen, state
                 );
+
+                smap = new SMAP(parentCodegen.mappings);
             }
             else {
-                generateMethodBody(maxCalcAdapter, functionDescriptor, methodContext, (JetDeclarationWithBody) element, jvmSignature);
+                smap = generateMethodBody(maxCalcAdapter, functionDescriptor, methodContext, (JetDeclarationWithBody) element,
+                                               jvmSignature);
             }
+            nodeAndSMAP = new SMAPAndMethodNode(node, element.getContainingFile().getName(), smap);
             maxCalcAdapter.visitMaxs(-1, -1);
             maxCalcAdapter.visitEnd();
         }
-        return node;
+        return nodeAndSMAP;
     }
 
-    private InlineResult inlineCall(MethodNode node) {
+    private InlineResult inlineCall(SMAPAndMethodNode nodeAndSmap) {
+        sourceMapper.visitSource(nodeAndSmap.getSource());
+
+        MethodNode node = nodeAndSmap.getNode();
         ReifiedTypeParametersUsages reificationResult = reifiedTypeInliner.reifyInstructions(node.instructions);
         generateClosuresBodies();
 
@@ -299,23 +303,30 @@ public class InlineCodegen extends CallGenerator {
         return methodNode;
     }
 
-    private void generateMethodBody(
+    private SMAP generateMethodBody(
             @NotNull MethodVisitor adapter,
             @NotNull FunctionDescriptor descriptor,
             @NotNull MethodContext context,
             @NotNull JetDeclarationWithBody declaration,
             @NotNull JvmMethodSignature jvmMethodSignature
     ) {
+        FakeMemberCodegen parentCodegen = new FakeMemberCodegen(codegen.getParentCodegen());
         FunctionCodegen.generateMethodBody(
             adapter, descriptor, context, jvmMethodSignature,
             new FunctionGenerationStrategy.FunctionDefault(state, descriptor, declaration),
             // Wrapping for preventing marking actual parent codegen as containing reifier markers
-            new FakeMemberCodegen(codegen.getParentCodegen())
+            parentCodegen
         );
+
+        return new SMAP(parentCodegen.mappings);
     }
 
     private static class FakeMemberCodegen extends MemberCodegen {
+
         private final MemberCodegen delegate;
+
+        List<FileMapping> mappings = new ArrayList<FileMapping>();
+
         public FakeMemberCodegen(@NotNull MemberCodegen wrapped) {
             super(wrapped);
             delegate = wrapped;
@@ -340,6 +351,11 @@ public class InlineCodegen extends CallGenerator {
         @Override
         public NameGenerator getInlineNameGenerator() {
             return delegate.getInlineNameGenerator();
+        }
+
+        @Override
+        public void addSMAP(FileMapping fm) {
+            mappings.add(fm);
         }
     }
 
