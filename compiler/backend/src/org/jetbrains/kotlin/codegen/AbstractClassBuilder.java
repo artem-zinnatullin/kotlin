@@ -122,7 +122,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void visitSource(@NotNull String name, @Nullable String debug, JetElement declaration) {
+    public void visitSource(@NotNull String name, @Nullable String debug, @NotNull JetElement declaration) {
         sourceName = name;
     }
 

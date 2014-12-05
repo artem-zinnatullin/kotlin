@@ -69,7 +69,7 @@ public interface ClassBuilder {
             @NotNull String[] interfaces
     );
 
-    void visitSource(@NotNull String name, @Nullable String debug, JetElement declaration);
+    void visitSource(@NotNull String name, @Nullable String debug, @NotNull JetElement declaration);
 
     void visitOuterClass(@NotNull String owner, @Nullable String name, @Nullable String desc);
 
