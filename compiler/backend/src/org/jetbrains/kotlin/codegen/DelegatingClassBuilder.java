@@ -20,6 +20,7 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.codegen.inline.FileMapping;
+import org.jetbrains.kotlin.psi.JetElement;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
@@ -93,8 +94,8 @@ public abstract class DelegatingClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void visitSource(@NotNull String name, @Nullable String debug) {
-        getDelegate().visitSource(name, debug);
+    public void visitSource(@NotNull String name, @Nullable String debug, JetElement declaration) {
+        getDelegate().visitSource(name, debug, declaration);
     }
 
     @Override

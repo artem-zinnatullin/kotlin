@@ -54,7 +54,7 @@ public class PackagePartCodegen extends MemberCodegen<JetFile> {
                       "java/lang/Object",
                       ArrayUtil.EMPTY_STRING_ARRAY
         );
-        v.visitSource(element.getName(), null);
+        v.visitSource(element.getName(), null, element);
 
         generatePropertyMetadataArrayFieldIfNeeded(packagePartType);
     }

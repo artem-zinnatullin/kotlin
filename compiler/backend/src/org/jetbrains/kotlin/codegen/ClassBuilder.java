@@ -20,6 +20,7 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.codegen.inline.FileMapping;
+import org.jetbrains.kotlin.psi.JetElement;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
@@ -68,7 +69,7 @@ public interface ClassBuilder {
             @NotNull String[] interfaces
     );
 
-    void visitSource(@NotNull String name, @Nullable String debug);
+    void visitSource(@NotNull String name, @Nullable String debug, JetElement declaration);
 
     void visitOuterClass(@NotNull String owner, @Nullable String name, @Nullable String desc);
 

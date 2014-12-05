@@ -145,7 +145,8 @@ public class ClosureCodegen extends MemberCodegen<JetElement> {
                       superClassAsmType.getInternalName(),
                       superInterfaceAsmTypes
         );
-        v.visitSource(element.getContainingFile().getName(), null);
+
+        v.visitSource(element.getContainingFile().getName(), null, element);
     }
 
     @Nullable

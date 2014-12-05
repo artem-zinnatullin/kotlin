@@ -91,7 +91,7 @@ public class SamWrapperCodegen {
                        OBJECT_TYPE.getInternalName(),
                        new String[]{ typeMapper.mapType(samType.getType()).getInternalName() }
         );
-        cv.visitSource(file.getName(), null);
+        cv.visitSource(file.getName(), null, file);
 
         writeKotlinSyntheticClassAnnotation(cv, KotlinSyntheticClass.Kind.SAM_WRAPPER);
 

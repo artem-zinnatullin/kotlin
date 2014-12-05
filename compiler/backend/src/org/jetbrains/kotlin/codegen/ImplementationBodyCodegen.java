@@ -206,7 +206,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
                       signature.getSuperclassName(),
                       ArrayUtil.toStringArray(interfaces)
         );
-        v.visitSource(myClass.getContainingFile().getName(), null);
+        v.visitSource(myClass.getContainingFile().getName(), null, myClass);
 
         writeEnclosingMethod();
 

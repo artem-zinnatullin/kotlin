@@ -21,6 +21,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.codegen.inline.FileMapping;
 import org.jetbrains.kotlin.codegen.inline.SMAPBuilder;
+import org.jetbrains.kotlin.psi.JetElement;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.*;
 
@@ -121,7 +122,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void visitSource(@NotNull String name, @Nullable String debug) {
+    public void visitSource(@NotNull String name, @Nullable String debug, JetElement declaration) {
         sourceName = name;
     }
 
