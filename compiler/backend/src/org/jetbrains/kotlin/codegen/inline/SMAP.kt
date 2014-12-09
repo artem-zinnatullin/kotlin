@@ -19,7 +19,9 @@ package org.jetbrains.kotlin.codegen.inline
 import org.jetbrains.org.objectweb.asm.MethodVisitor
 import org.jetbrains.org.objectweb.asm.Label
 
-public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>) {
+public class SMAPBuilder(val source: String,
+                         val fileMappings: List<FileMapping>,
+                         val defaultLineNumbers: Int) {
 
     val header = "SMAP\n$source\nKotlin\n*S Kotlin"
 
@@ -28,19 +30,27 @@ public class SMAPBuilder(val source: String, val fileMappings: List<FileMapping>
             return null;
         }
 
+
+        val defaultSourceMapping = FileMapping(source)
+        for(i in 1..defaultLineNumbers) {
+            defaultSourceMapping.addLineMapping(i, i)
+        }
+        val allMappings = arrayListOf(defaultSourceMapping)
+        allMappings.addAll(fileMappings)
+
         var id = 1;
 
-        val fileIds = "*F\n" +
-                      fileMappings.fold("") {(a, e) ->
-                          a + "${e.toSMAPFile(id++)}"
+        val fileIds = "*F" +
+                      allMappings.fold("") {(a, e) ->
+                          a + "\n${e.toSMAPFile(id++)}"
                       }
 
         val fileMappings = "*L" +
-                      fileMappings.fold("") {(a, e) ->
+                      allMappings.fold("") {(a, e) ->
                           a + "${e.toSMAPMapping()}"
                       }
 
-        return header + "\n" + fileIds +"\n" + fileMappings + "\n*E"
+        return header + "\n" + fileIds +"\n" + fileMappings + "\n*E\n"
     }
 }
 

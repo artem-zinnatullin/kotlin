@@ -16,12 +16,12 @@
 
 package org.jetbrains.kotlin.codegen.inline
 
-class SMAPParser(val input: String) {
+class SMAPParser(val input: String?) {
 
     val fileMappings = linkedMapOf<Int, FileMapping>()
 
     fun parse() : SMAP {
-        if (input.isEmpty()) {
+        if (input == null || input.isEmpty()) {
             return SMAP(listOf())
         }
 
