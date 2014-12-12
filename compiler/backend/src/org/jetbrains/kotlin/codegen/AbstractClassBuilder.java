@@ -104,7 +104,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void done() {
         if (sourceName != null) {
-            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, fileMappings, lineNumbers).build());
+            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, "test/" + sourceName, fileMappings, lineNumbers).build());
         }
         getVisitor().visitEnd();
     }

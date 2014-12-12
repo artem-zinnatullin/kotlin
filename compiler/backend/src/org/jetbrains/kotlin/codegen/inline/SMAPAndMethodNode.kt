@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.codegen.inline
 
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 
-public class SMAPAndMethodNode(val node: MethodNode, val source: String, val smap: SMAP) {
+public class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath: String, val smap: SMAP) {
 
 
 }

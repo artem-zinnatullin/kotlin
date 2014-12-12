@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.codegen.inline
 
-class SMAPParser(val input: String?) {
+class SMAPParser(val input: String?, val path: String) {
 
     val fileMappings = linkedMapOf<Int, FileMapping>()
 
@@ -30,13 +30,14 @@ class SMAPParser(val input: String?) {
         val files = input.substring(fileSectionStart, lineSectionAnchor)
 
 
-        val fileEntries = files.split('\n')
+        val fileEntries = files.split('+')
         for (fileDeclaration in fileEntries) {
             /*only short format now*/
             val indexEnd = fileDeclaration.indexOf(' ')
             val fileIndex = Integer.valueOf(fileDeclaration.substring(0, indexEnd))
-            val fileName = fileDeclaration.substring(indexEnd + 1)
-            fileMappings.put(fileIndex, FileMapping(fileName))
+            val newLine = fileDeclaration.indexOf('\n')
+            val fileName = fileDeclaration.substring(indexEnd + 1, newLine)
+            fileMappings.put(fileIndex, FileMapping(fileName, fileDeclaration.substring(newLine + 1)))
         }
 
 

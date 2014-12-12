@@ -20,6 +20,7 @@ import org.jetbrains.org.objectweb.asm.MethodVisitor
 import org.jetbrains.org.objectweb.asm.Label
 
 public class SMAPBuilder(val source: String,
+                         val path: String,
                          val fileMappings: List<FileMapping>,
                          val defaultLineNumbers: Int) {
 
@@ -31,7 +32,7 @@ public class SMAPBuilder(val source: String,
         }
 
 
-        val defaultSourceMapping = FileMapping(source)
+        val defaultSourceMapping = FileMapping(source, path)
         for(i in 1..defaultLineNumbers) {
             defaultSourceMapping.addLineMapping(i, i)
         }
@@ -58,15 +59,15 @@ public class SourceMapper(val lineNumbers: Int) {
 
     private var currentOffset = lineNumbers;
 
-    var fileMapping: FileMapping? = null;
+    var fileMapping: MutableList<FileMapping> = arrayListOf();
 
-    fun visitSource(name: String) {
-        fileMapping = FileMapping(name)
+    fun visitSource(name: String, path: String) {
+        fileMapping.add(FileMapping(name, path))
     }
 
     fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         iv.visitLineNumber(++currentOffset, start)
-        fileMapping!!.addLineMapping(lineNumber, currentOffset)
+        fileMapping.last!!.addLineMapping(lineNumber, currentOffset)
     }
 
 }
@@ -84,14 +85,14 @@ class SMAP(fileMappings: List<FileMapping>) {
     }
 }
 
-class FileMapping(val name: String) {
+class FileMapping(val name: String, val path: String) {
     private val lineMappings = arrayListOf<LineMapping>()
 
     var id = -1;
 
     fun toSMAPFile(id: Int): String {
         this.id = id;
-        return "$id $name"
+        return "+ $id $name\n$path"
     }
 
     fun toSMAPMapping(): String {

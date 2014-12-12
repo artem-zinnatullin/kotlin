@@ -105,7 +105,7 @@ public class InlineCodegenUtil {
             }
         }, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 
-        return new SMAPAndMethodNode(node[0], debugInfo[0], new SMAPParser(debugInfo[1]).parse());
+        return new SMAPAndMethodNode(node[0], debugInfo[0], "TODO", new SMAPParser(debugInfo[1], "TODO").parse());
     }
 
 

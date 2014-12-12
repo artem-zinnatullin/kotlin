@@ -20,13 +20,11 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlin.backend.common.CodegenUtil;
 import org.jetbrains.kotlin.codegen.context.ClassContext;
 import org.jetbrains.kotlin.codegen.context.CodegenContext;
 import org.jetbrains.kotlin.codegen.context.FieldOwnerContext;
-import org.jetbrains.kotlin.codegen.inline.FileMapping;
-import org.jetbrains.kotlin.codegen.inline.InlineCodegenUtil;
-import org.jetbrains.kotlin.codegen.inline.NameGenerator;
-import org.jetbrains.kotlin.codegen.inline.ReifiedTypeParametersUsages;
+import org.jetbrains.kotlin.codegen.inline.*;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
@@ -83,6 +81,8 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
     protected ExpressionCodegen clInit;
     private NameGenerator inlineNameGenerator;
 
+    private SourceMapper sourceMapper;
+
     public MemberCodegen(
             @NotNull GenerationState state,
             @Nullable MemberCodegen<?> parentCodegen,
@@ -137,7 +137,15 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
             FunctionCodegen.endVisit(clInit.v, "static initializer", element);
         }
 
+
         writeInnerClasses();
+
+        if (sourceMapper != null) {
+            List<FileMapping> mapping = sourceMapper.getFileMapping();
+            for (FileMapping fileMapping : mapping) {
+                v.addSMAP(fileMapping);
+            }
+        }
 
         v.done();
     }
@@ -200,7 +208,8 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
         if (aClass instanceof JetClass && ((JetClass) aClass).isTrait()) {
             Type traitImplType = state.getTypeMapper().mapTraitImpl(descriptor);
-            ClassBuilder traitImplBuilder = state.getFactory().newVisitor(TraitImpl(aClass, descriptor), traitImplType, aClass.getContainingFile());
+            ClassBuilder traitImplBuilder = state.getFactory().newVisitor(TraitImpl(aClass, descriptor), traitImplType,
+                                                                          aClass.getContainingFile());
             ClassContext traitImplContext = parentContext.intoClass(descriptor, OwnerKind.TRAIT_IMPL, state);
             new TraitImplBodyCodegen(aClass, traitImplContext, traitImplBuilder, state, parentCodegen).generate();
         }
@@ -471,5 +480,15 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     public void addSMAP(FileMapping fm) {
         v.addSMAP(fm);
+    }
+
+    public SourceMapper getSourceMapper() {
+        if (sourceMapper == null) {
+            assert element != null : "Couldn't create source mapper for null element " + this;
+            Integer lineNumbers = CodegenUtil.getLineNumberForElement(element.getContainingFile(), true);
+            assert lineNumbers != null : "Couldn't extract line count in " + element.getContainingFile();
+            sourceMapper = new SourceMapper(lineNumbers);
+        }
+        return sourceMapper;
     }
 }
