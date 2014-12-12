@@ -32,12 +32,14 @@ import org.jetbrains.kotlin.codegen.context.PackageContext;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.renderer.DescriptorRenderer;
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes;
+import org.jetbrains.kotlin.resolve.jvm.JvmClassName;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterKind;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterSignature;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature;
@@ -53,10 +55,7 @@ import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import org.jetbrains.org.objectweb.asm.tree.TryCatchBlockNode;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
+import java.util.*;
 
 import static org.jetbrains.kotlin.codegen.AsmUtil.getMethodAsmFlags;
 import static org.jetbrains.kotlin.codegen.AsmUtil.isPrimitive;
@@ -172,8 +171,12 @@ public class InlineCodegen extends CallGenerator {
 
         SMAPAndMethodNode nodeAndSMAP;
         if (functionDescriptor instanceof DeserializedSimpleFunctionDescriptor) {
-            VirtualFile file = InlineCodegenUtil.getVirtualFileForCallable((DeserializedSimpleFunctionDescriptor) functionDescriptor, state);
-            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(), asmMethod.getName(), asmMethod.getDescriptor());
+            ClassId containerClassId = InlineCodegenUtil.getContainerClassIdForInlineCallable(
+                    (DeserializedSimpleFunctionDescriptor) functionDescriptor);
+
+            VirtualFile file = InlineCodegenUtil.getVirtualFileForCallable(containerClassId, state);
+            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(), asmMethod.getName(), asmMethod.getDescriptor(),
+                                                          JvmClassName.byClassId(containerClassId).getInternalName());
 
             if (nodeAndSMAP == null) {
                 throw new RuntimeException("Couldn't obtain compiled function body for " + descriptorName(functionDescriptor));
