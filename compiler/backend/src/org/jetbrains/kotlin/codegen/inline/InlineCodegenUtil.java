@@ -103,7 +103,7 @@ public class InlineCodegenUtil {
                 }
                 return null;
             }
-        }, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        }, ClassReader.SKIP_FRAMES);
 
         return new SMAPAndMethodNode(node[0], debugInfo[0], "TODO", new SMAPParser(debugInfo[1], "TODO").parse());
     }
