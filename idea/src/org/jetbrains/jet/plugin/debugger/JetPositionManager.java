@@ -82,11 +82,11 @@ public class JetPositionManager implements PositionManager {
     @Nullable
     public SourcePosition getSourcePosition(@Nullable Location location) throws NoDataException {
         if (location == null) {
-            throw new NoDataException();
+            throw NoDataException.INSTANCE;
         }
         PsiFile psiFile = getPsiFileByLocation(location);
         if (psiFile == null) {
-            throw new NoDataException();
+            throw NoDataException.INSTANCE;
         }
 
         int lineNumber;
@@ -105,7 +105,7 @@ public class JetPositionManager implements PositionManager {
             return SourcePosition.createFromLine(psiFile, lineNumber);
         }
 
-        throw new NoDataException();
+        throw NoDataException.INSTANCE;
     }
 
     private JetFunctionLiteral getLambdaIfInside(@NotNull Location location, @NotNull JetFile file, int lineNumber) {
@@ -348,18 +348,18 @@ public class JetPositionManager implements PositionManager {
     @Override
     public List<Location> locationsOfLine(ReferenceType type, SourcePosition position) throws NoDataException {
         if (!(position.getFile() instanceof JetFile)) {
-            throw new NoDataException();
+            throw NoDataException.INSTANCE;
         }
         try {
             int line = position.getLine() + 1;
             List<Location> locations = myDebugProcess.getVirtualMachineProxy().versionHigher("1.4")
                                        ? type.locationsOfLine(DebugProcess.JAVA_STRATUM, null, line)
                                        : type.locationsOfLine(line);
-            if (locations == null || locations.isEmpty()) throw new NoDataException();
+            if (locations == null || locations.isEmpty()) throw NoDataException.INSTANCE;
             return locations;
         }
         catch (AbsentInformationException e) {
-            throw new NoDataException();
+            throw NoDataException.INSTANCE;
         }
     }
 
@@ -367,7 +367,7 @@ public class JetPositionManager implements PositionManager {
     public ClassPrepareRequest createPrepareRequest(ClassPrepareRequestor classPrepareRequestor,
                                                     SourcePosition sourcePosition) throws NoDataException {
         if (!(sourcePosition.getFile() instanceof JetFile)) {
-            throw new NoDataException();
+            throw NoDataException.INSTANCE;
         }
         String className = classNameForPosition(sourcePosition);
         if (className == null) {
