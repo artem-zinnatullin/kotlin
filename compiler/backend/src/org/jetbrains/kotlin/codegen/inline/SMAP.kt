@@ -55,17 +55,28 @@ public class SMAPBuilder(val source: String,
     }
 }
 
-public class SourceMapper(val lineNumbers: Int) {
+public object IdenticalSourceMapper: SourceMapper(-1) {
+
+    override fun visitSource(name: String, path: String) {
+
+    }
+
+    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+        iv.visitLineNumber(lineNumber, start)
+    }
+}
+
+public open class SourceMapper(val lineNumbers: Int) {
 
     private var currentOffset = lineNumbers;
 
     var fileMapping: MutableList<FileMapping> = arrayListOf();
 
-    fun visitSource(name: String, path: String) {
+    open fun visitSource(name: String, path: String) {
         fileMapping.add(FileMapping(name, path))
     }
 
-    fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+    open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         iv.visitLineNumber(++currentOffset, start)
         fileMapping.last!!.addLineMapping(lineNumber, currentOffset)
     }
