@@ -181,7 +181,7 @@ public class InlineCodegen extends CallGenerator {
         }
         else {
             PsiElement element = DescriptorToSourceUtils.descriptorToDeclaration(functionDescriptor);
-
+            Type ownerType = typeMapper.mapOwner(functionDescriptor, false);
 
             if (element == null) {
                 throw new RuntimeException("Couldn't find declaration for function " + descriptorName(functionDescriptor));
@@ -213,7 +213,7 @@ public class InlineCodegen extends CallGenerator {
                                                jvmSignature);
             }
             PsiFile file = element.getContainingFile();
-            nodeAndSMAP = new SMAPAndMethodNode(node, file.getName(), file.getVirtualFile().getPath(),  smap);
+            nodeAndSMAP = new SMAPAndMethodNode(node, file.getName(), ownerType.getInternalName(),  smap);
             maxCalcAdapter.visitMaxs(-1, -1);
             maxCalcAdapter.visitEnd();
         }

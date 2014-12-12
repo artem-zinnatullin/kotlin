@@ -150,9 +150,17 @@ public class JetPositionManager implements PositionManager {
             return null;
         }
 
-        // JDI names are of form "package.Class$InnerClass"
-        String referenceFqName = location.declaringType().name();
-        String referenceInternalName = referenceFqName.replace('.', '/');
+        String referenceInternalName;
+        try {
+            referenceInternalName = location.sourcePath();
+        }
+        catch (AbsentInformationException e) {
+            //no stratum or source path => use default one
+            String referenceFqName = location.declaringType().name();
+            // JDI names are of form "package.Class$InnerClass"
+            referenceInternalName = referenceFqName.replace('.', '/');
+        }
+
         JvmClassName className = JvmClassName.byInternalName(referenceInternalName);
 
         Project project = myDebugProcess.getProject();
@@ -353,7 +361,7 @@ public class JetPositionManager implements PositionManager {
         try {
             int line = position.getLine() + 1;
             List<Location> locations = myDebugProcess.getVirtualMachineProxy().versionHigher("1.4")
-                                       ? type.locationsOfLine(DebugProcess.JAVA_STRATUM, null, line)
+                                       ? type.locationsOfLine(null, null, line)
                                        : type.locationsOfLine(line);
             if (locations == null || locations.isEmpty()) throw NoDataException.INSTANCE;
             return locations;
