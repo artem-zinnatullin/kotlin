@@ -30,18 +30,21 @@ class SMAPParser(val input: String?, val path: String) {
         val files = input.substring(fileSectionStart, lineSectionAnchor)
 
 
-        val fileEntries = files.split('+')
+        val fileEntries = files.trim().split('+')
+
         for (fileDeclaration in fileEntries) {
-            /*only short format now*/
-            val indexEnd = fileDeclaration.indexOf(' ')
-            val fileIndex = Integer.valueOf(fileDeclaration.substring(0, indexEnd))
-            val newLine = fileDeclaration.indexOf('\n')
-            val fileName = fileDeclaration.substring(indexEnd + 1, newLine)
-            fileMappings.put(fileIndex, FileMapping(fileName, fileDeclaration.substring(newLine + 1)))
+            if (fileDeclaration == "") continue;
+            val fileInternalName = fileDeclaration.trim()
+
+            val indexEnd = fileInternalName.indexOf(' ')
+            val fileIndex = Integer.valueOf(fileInternalName.substring(0, indexEnd))
+            val newLine = fileInternalName.indexOf('\n')
+            val fileName = fileInternalName.substring(indexEnd + 1, newLine)
+            fileMappings.put(fileIndex, FileMapping(fileName, fileInternalName.substring(newLine + 1).trim()))
         }
 
 
-        val lines = input.substring(lineSectionAnchor + SMAP.LINE_SECTION.length, input.indexOf(SMAP.END)).split('\n')
+        val lines = input.substring(lineSectionAnchor + SMAP.LINE_SECTION.length, input.indexOf(SMAP.END)).trim().split('\n')
         for (lineMapping in lines) {
             /*only simple mapping now*/
             val fileSeparator = lineMapping.indexOf('#')
