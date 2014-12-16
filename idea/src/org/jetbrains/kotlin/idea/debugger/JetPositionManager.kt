@@ -131,9 +131,17 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
         }
 
 
-        // JDI names are of form "package.Class$InnerClass"
-        val referenceFqName = location.declaringType().name()
-        val referenceInternalName = referenceFqName.replace('.', '/')
+        val referenceInternalName: String
+        try {
+            referenceInternalName = location.sourcePath()
+        }
+        catch (e: AbsentInformationException) {
+            //no stratum or source path => use default one
+            val referenceFqName = location.declaringType().name()
+            // JDI names are of form "package.Class$InnerClass"
+            referenceInternalName = referenceFqName.replace('.', '/')
+        }
+
         val className = JvmClassName.byInternalName(referenceInternalName)
 
         val project = myDebugProcess.getProject()
