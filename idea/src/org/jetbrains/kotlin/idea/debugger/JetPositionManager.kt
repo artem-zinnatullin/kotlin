@@ -221,7 +221,7 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
         try {
             val line = position.getLine() + 1
             val locations = if (myDebugProcess.getVirtualMachineProxy().versionHigher("1.4"))
-                type.locationsOfLine(DebugProcess.JAVA_STRATUM, null, line)
+                type.locationsOfLine("Kotlin", null, line)
             else
                 type.locationsOfLine(line)
             if (locations == null || locations.isEmpty()) throw NoDataException()
@@ -236,11 +236,16 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
         if (sourcePosition.getFile() !is JetFile) {
             throw NoDataException()
         }
-        val className = classNameForPosition(sourcePosition)
-        if (className == null) {
+        val classNames = classNameForPositionAndInlinedOnes(sourcePosition)
+        if (classNames.isEmpty()) {
             return null
         }
-        return myDebugProcess.getRequestsManager().createClassPrepareRequest(classPrepareRequestor, className.replace('/', '.'))
+        val classPrepareRequest = myDebugProcess.getRequestsManager().createClassPrepareRequest(classPrepareRequestor, classNames.first().replace('/', '.'))
+//        classNames.subList(1, classNames.size()).forEach {
+//            classPrepareRequest.addClassFilter(it.replace('/', '.'))
+//        }
+
+        return classPrepareRequest
     }
 
     TestOnly
