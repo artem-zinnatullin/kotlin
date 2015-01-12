@@ -50,17 +50,15 @@ import org.jetbrains.kotlin.builtins.InlineUtil
 import org.jetbrains.kotlin.idea.caches.resolve.*
 import org.jetbrains.kotlin.idea.codeInsight.CodeInsightUtils
 import org.jetbrains.kotlin.idea.util.DebuggerUtils
-
-import java.util.*
-
-import org.jetbrains.kotlin.codegen.binding.CodegenBinding.asmTypeForAnonymousClass
-import org.jetbrains.kotlin.idea.stubindex.PackageIndexUtil
-import org.jetbrains.kotlin.idea.util.application.runReadAction
-import org.jetbrains.kotlin.descriptors.SimpleFunctionDescriptor
+import org.jetbrains.kotlin.idea.search.usagesSearch.DefaultSearchHelper
 import com.intellij.find.findUsages.FindUsagesOptions
 import org.jetbrains.kotlin.idea.findUsages.toSearchTarget
-import org.jetbrains.kotlin.idea.search.usagesSearch.DefaultSearchHelper
+import org.jetbrains.kotlin.descriptors.SimpleFunctionDescriptor
 import org.jetbrains.kotlin.idea.search.usagesSearch.search
+import java.util.WeakHashMap
+import org.jetbrains.kotlin.idea.util.application.runReadAction
+import org.jetbrains.kotlin.idea.stubindex.PackageIndexUtil
+
 
 public class JetPositionManager(private val myDebugProcess: DebugProcess) : PositionManager {
     private val myTypeMappers = WeakHashMap<Pair<FqName, IdeaModuleInfo>, CachedValue<JetTypeMapper>>()
