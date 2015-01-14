@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.idea.debugger
 
 import com.intellij.debugger.NoDataException
-import com.intellij.debugger.PositionManager
 import com.intellij.debugger.SourcePosition
 import com.intellij.debugger.engine.DebugProcess
 import com.intellij.debugger.requests.ClassPrepareRequestor
@@ -60,9 +59,10 @@ import org.jetbrains.kotlin.idea.util.application.runReadAction
 import org.jetbrains.kotlin.idea.stubindex.PackageIndexUtil
 import java.util.ArrayList
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding
+import com.intellij.debugger.MultiRequestPositionManager
+import java.util.Collections
 
-
-public class JetPositionManager(private val myDebugProcess: DebugProcess) : PositionManager {
+public class JetPositionManager(private val myDebugProcess: DebugProcess) : MultiRequestPositionManager {
     private val myTypeMappers = WeakHashMap<Pair<FqName, IdeaModuleInfo>, CachedValue<JetTypeMapper>>()
 
     override fun getSourcePosition(location: Location?): SourcePosition? {
@@ -240,12 +240,22 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
         if (classNames.isEmpty()) {
             return null
         }
-        val classPrepareRequest = myDebugProcess.getRequestsManager().createClassPrepareRequest(classPrepareRequestor, classNames.first().replace('/', '.'))
-//        classNames.subList(1, classNames.size()).forEach {
-//            classPrepareRequest.addClassFilter(it.replace('/', '.'))
-//        }
+        return myDebugProcess.getRequestsManager().createClassPrepareRequest(classPrepareRequestor, classNames.first().replace('/', '.'))
+    }
 
-        return classPrepareRequest
+    override fun createPrepareRequests(classPrepareRequestor: ClassPrepareRequestor, sourcePosition: SourcePosition): MutableList<ClassPrepareRequest> {
+        if (sourcePosition.getFile() !is JetFile) {
+            throw NoDataException()
+        }
+        val classNames = classNameForPositionAndInlinedOnes(sourcePosition)
+        if (classNames.isEmpty()) {
+            return Collections.emptyList()
+        }
+        val requests = arrayListOf<ClassPrepareRequest>()
+        for (className in classNames) {
+            requests.add(myDebugProcess.getRequestsManager().createClassPrepareRequest(classPrepareRequestor, className.replace('/', '.')))
+        }
+        return requests
     }
 
     TestOnly
