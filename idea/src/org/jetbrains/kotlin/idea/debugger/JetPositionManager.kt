@@ -58,6 +58,8 @@ import org.jetbrains.kotlin.idea.search.usagesSearch.search
 import java.util.WeakHashMap
 import org.jetbrains.kotlin.idea.util.application.runReadAction
 import org.jetbrains.kotlin.idea.stubindex.PackageIndexUtil
+import java.util.ArrayList
+import org.jetbrains.kotlin.codegen.binding.CodegenBinding
 
 
 public class JetPositionManager(private val myDebugProcess: DebugProcess) : PositionManager {
@@ -278,7 +280,7 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
                         return getClassNameForElement(element.getParent(), typeMapper, file, isInLibrary)
                     }
                     else {
-                        val asmType = asmTypeForAnonymousClass(typeMapper.getBindingContext(), element)
+                        val asmType = CodegenBinding.asmTypeForAnonymousClass(typeMapper.getBindingContext(), element)
                         return asmType.getInternalName()
                     }
                 }
@@ -311,7 +313,7 @@ public class JetPositionManager(private val myDebugProcess: DebugProcess) : Posi
                         return getJvmInternalNameForImpl(typeMapper, parent)
                     }
                     else if (parent != null) {
-                        val asmType = asmTypeForAnonymousClass(typeMapper.getBindingContext(), element)
+                        val asmType = CodegenBinding.asmTypeForAnonymousClass(typeMapper.getBindingContext(), element)
                         return asmType.getInternalName()
                     }
                 }
