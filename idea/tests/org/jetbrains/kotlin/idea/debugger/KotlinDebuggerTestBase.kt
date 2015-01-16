@@ -29,7 +29,7 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.debugger.SourcePosition
 import com.intellij.debugger.settings.DebuggerSettings
 import kotlin.properties.Delegates
-import org.jetbrains.jet.InTextDirectivesUtils.findStringWithPrefixes
+import org.jetbrains.kotlin.test.InTextDirectivesUtils.findStringWithPrefixes
 
 abstract class KotlinDebuggerTestBase : KotlinDebuggerTestCase() {
     private var oldSettings: DebuggerSettings by Delegates.notNull()

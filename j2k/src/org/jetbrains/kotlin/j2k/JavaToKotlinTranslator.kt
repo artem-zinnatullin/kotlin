@@ -44,6 +44,7 @@ import com.intellij.psi.compiled.ClassFileDecompilers
 import com.intellij.psi.impl.PsiTreeChangePreprocessor
 import com.intellij.psi.PsiElementFinder
 import com.intellij.openapi.extensions.ExtensionsArea
+import com.intellij.psi.PsiElement
 
 public object JavaToKotlinTranslator {
     val DISPOSABLE = Disposer.newDisposable()
@@ -71,6 +72,7 @@ public object JavaToKotlinTranslator {
         javaCoreEnvironment.getProject().registerService(javaClass<NullableNotNullManager>(), object : NullableNotNullManager() {
             override fun isNullable(owner: PsiModifierListOwner, checkBases: Boolean) = !isNotNull(owner, checkBases)
             override fun isNotNull(owner: PsiModifierListOwner, checkBases: Boolean) = true
+            override fun hasHardcodedContracts(element: PsiElement): Boolean = false
         })
 
         for (root in PathUtil.getJdkClassesRoots()) {
