@@ -106,7 +106,7 @@ class RawFileMapping(val name: String, val path: String) {
     fun toFileMapping(): FileMapping {
         val fileMapping = FileMapping(name, path)
         for (range in rangeMappings) {
-            fileMapping.addLineMapping(range)
+            fileMapping.addRangeMapping(range)
         }
         return fileMapping
     }
@@ -155,7 +155,7 @@ public class FileMapping(val name: String, val path: String) {
         }
     }
 
-    fun addLineMapping(lineMapping: RangeMapping) {
+    fun addRangeMapping(lineMapping: RangeMapping) {
         lineMappings.add(lineMapping)
     }
 }

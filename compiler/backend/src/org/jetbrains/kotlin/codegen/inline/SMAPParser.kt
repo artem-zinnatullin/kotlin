@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.codegen.inline
 
 class SMAPParser(val input: String?, val path: String) {
 
-    val fileMappings = linkedMapOf<Int, RawFileMapping>()
+    val fileMappings = linkedMapOf<Int, FileMapping>()
 
     fun parse() : SMAP {
         if (input == null || input.isEmpty()) {
@@ -40,21 +40,24 @@ class SMAPParser(val input: String?, val path: String) {
             val fileIndex = Integer.valueOf(fileInternalName.substring(0, indexEnd))
             val newLine = fileInternalName.indexOf('\n')
             val fileName = fileInternalName.substring(indexEnd + 1, newLine)
-            fileMappings.put(fileIndex, RawFileMapping(fileName, fileInternalName.substring(newLine + 1).trim()))
+            fileMappings.put(fileIndex, FileMapping(fileName, fileInternalName.substring(newLine + 1).trim()))
         }
 
 
-        val lines = input.substring(lineSectionAnchor + SMAP.LINE_SECTION.length, input.indexOf(SMAP.END)).trim().split('\n')
+        val lines = input.substring(lineSectionAnchor + SMAP.LINE_SECTION.length(), input.indexOf(SMAP.END)).trim().split('\n')
         for (lineMapping in lines) {
             /*only simple mapping now*/
             val fileSeparator = lineMapping.indexOf('#')
             val splitIndex = lineMapping.indexOf(':')
-            val originalIndex = Integer.valueOf(lineMapping.substring(0, fileSeparator))
+            val originalPart = lineMapping.substring(0, fileSeparator)
+            val rangeSeparator = originalPart.indexOf(',')
+            val originalIndex = Integer.valueOf(originalPart.substring(0, if (rangeSeparator < 0) fileSeparator else rangeSeparator))
+            val range = if (rangeSeparator < 0) 1 else Integer.valueOf(originalPart.substring(rangeSeparator + 1, fileSeparator))
             val fileIndex = Integer.valueOf(lineMapping.substring(fileSeparator + 1, splitIndex))
             val targetIndex = Integer.valueOf(lineMapping.substring(splitIndex + 1))
-            fileMappings[fileIndex]!!.mapLine(originalIndex, targetIndex, true)
+            fileMappings[fileIndex]!!.addRangeMapping(RangeMapping(originalIndex, targetIndex, range))
         }
 
-        return SMAP(fileMappings.values().map { it.toFileMapping() })
+        return SMAP(fileMappings.values().toList())
     }
 }
