@@ -22,7 +22,7 @@ import org.jetbrains.org.objectweb.asm.Label
 public class SMAPBuilder(val source: String,
                          val path: String,
                          val fileMappings: List<FileMapping>,
-                         val defaultLineNumbers: Int) {
+                         val lineCountInOriginalFile: Int) {
 
     val header = "SMAP\n$source\nKotlin\n*S Kotlin"
 
@@ -33,7 +33,7 @@ public class SMAPBuilder(val source: String,
 
 
         val defaultSourceMapping = RawFileMapping(source, path)
-        for(i in 1..defaultLineNumbers) {
+        for(i in 1..lineCountInOriginalFile) {
             defaultSourceMapping.mapLine(i, i - 1, true)
         }
         val allMappings = arrayListOf(defaultSourceMapping.toFileMapping())

@@ -39,7 +39,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     private final JvmSerializationBindings serializationBindings = new JvmSerializationBindings();
     private String sourceName;
-    private int lineNumbers;
+    private int lineCountInOriginalFile;
 
     public static class Concrete extends AbstractClassBuilder {
         private final ClassVisitor v;
@@ -104,7 +104,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void done() {
         if (sourceName != null) {
-            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, "test/" + sourceName, fileMappings, lineNumbers).build());
+            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, "test/" + sourceName, fileMappings, lineCountInOriginalFile).build());
         }
         getVisitor().visitEnd();
     }
@@ -126,7 +126,9 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void visitSource(@NotNull String name, @Nullable String debug, @NotNull JetElement declaration) {
         sourceName = name;
-        lineNumbers = CodegenUtil.getLineNumberForElement(declaration, true);
+        Integer lineCount = CodegenUtil.getLineNumberForElement(declaration, true);
+        assert lineCount != null : "Can't determine line count in " + declaration;
+        this.lineCountInOriginalFile = lineCount;
     }
 
     @Override
