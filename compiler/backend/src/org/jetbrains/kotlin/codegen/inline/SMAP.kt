@@ -27,16 +27,16 @@ public class SMAPBuilder(val source: String,
     val header = "SMAP\n$source\nKotlin\n*S Kotlin"
 
     fun build(): String? {
-        if (fileMappings.empty) {
+        if (fileMappings.isEmpty()) {
             return null;
         }
 
 
-        val defaultSourceMapping = FileMapping(source, path)
+        val defaultSourceMapping = RawFileMapping(source, path)
         for(i in 1..defaultLineNumbers) {
-            defaultSourceMapping.addLineMapping(i, i)
+            defaultSourceMapping.mapLine(i, i - 1, true)
         }
-        val allMappings = arrayListOf(defaultSourceMapping)
+        val allMappings = arrayListOf(defaultSourceMapping.toFileMapping())
         allMappings.addAll(fileMappings)
 
         var id = 1;
@@ -70,15 +70,16 @@ public open class SourceMapper(val lineNumbers: Int) {
 
     private var currentOffset = lineNumbers;
 
-    var fileMapping: MutableList<FileMapping> = arrayListOf();
+    var fileMapping: MutableList<RawFileMapping> = arrayListOf();
 
     open fun visitSource(name: String, path: String) {
-        fileMapping.add(FileMapping(name, path))
+        fileMapping.add(RawFileMapping(name, path))
     }
 
     open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
-        iv.visitLineNumber(++currentOffset, start)
-        fileMapping.last!!.addLineMapping(lineNumber, currentOffset)
+        val mappedLine = fileMapping.last().mapLine(lineNumber, currentOffset, true)
+        iv.visitLineNumber(mappedLine, start)
+        currentOffset = Math.max(currentOffset, mappedLine)
     }
 
 }
@@ -96,8 +97,49 @@ class SMAP(fileMappings: List<FileMapping>) {
     }
 }
 
-class FileMapping(val name: String, val path: String) {
-    private val lineMappings = arrayListOf<LineMapping>()
+class RawFileMapping(val name: String, val path: String) {
+    private val lineMappings = linkedMapOf<Int, Int>()
+    private val rangeMappings = arrayListOf<RangeMapping>()
+
+    private var lastMappedWithNewIndex = -1000;
+
+    fun toFileMapping(): FileMapping {
+        val fileMapping = FileMapping(name, path)
+        for (range in rangeMappings) {
+            fileMapping.addLineMapping(range)
+        }
+        return fileMapping
+    }
+
+    fun mapLine(source: Int, currentIndex: Int, isLastMapped: Boolean): Int {
+        var dest = lineMappings.get(source);
+        if (dest == null) {
+            val rangeMapping: RangeMapping
+            if (rangeMappings.isNotEmpty() && isLastMapped && couldFoldInRange(lastMappedWithNewIndex, source)) {
+                rangeMapping = rangeMappings.last()
+                rangeMapping.range += source - lastMappedWithNewIndex;
+                dest = lineMappings.get(lastMappedWithNewIndex) + source - lastMappedWithNewIndex;
+            } else {
+                dest = currentIndex + 1;
+                rangeMapping = RangeMapping(source, dest)
+                rangeMappings.add(rangeMapping)
+            }
+
+            lineMappings.put(source, dest)
+            lastMappedWithNewIndex = source;
+        }
+
+        return dest
+    }
+
+    private fun couldFoldInRange(first: Int, second: Int): Boolean {
+        val delta = second - first
+        return delta > 0 && delta <= 10;
+    }
+}
+
+public class FileMapping(val name: String, val path: String) {
+    private val lineMappings = arrayListOf<RangeMapping>()
 
     var id = -1;
 
@@ -113,14 +155,18 @@ class FileMapping(val name: String, val path: String) {
         }
     }
 
-    fun addLineMapping(source: Int, dest: Int) {
-        lineMappings.add(LineMapping(source, dest))
+    fun addLineMapping(lineMapping: RangeMapping) {
+        lineMappings.add(lineMapping)
     }
 }
 
-class LineMapping(val source: Int, val dest: Int) {
+public class RangeMapping(val source: Int, val dest: Int, var range: Int = 1) {
 
     fun toSMAP(fileId: Int): String {
-        return "$source#$fileId:$dest"
+        return if (range == 1) "$source#$fileId:$dest" else "$source#$fileId,$range:$dest"
+    }
+
+    fun appendRangeTo() {
+
     }
 }

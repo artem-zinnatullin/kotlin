@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.codegen.inline
 
 class SMAPParser(val input: String?, val path: String) {
 
-    val fileMappings = linkedMapOf<Int, FileMapping>()
+    val fileMappings = linkedMapOf<Int, RawFileMapping>()
 
     fun parse() : SMAP {
         if (input == null || input.isEmpty()) {
@@ -40,7 +40,7 @@ class SMAPParser(val input: String?, val path: String) {
             val fileIndex = Integer.valueOf(fileInternalName.substring(0, indexEnd))
             val newLine = fileInternalName.indexOf('\n')
             val fileName = fileInternalName.substring(indexEnd + 1, newLine)
-            fileMappings.put(fileIndex, FileMapping(fileName, fileInternalName.substring(newLine + 1).trim()))
+            fileMappings.put(fileIndex, RawFileMapping(fileName, fileInternalName.substring(newLine + 1).trim()))
         }
 
 
@@ -52,9 +52,9 @@ class SMAPParser(val input: String?, val path: String) {
             val originalIndex = Integer.valueOf(lineMapping.substring(0, fileSeparator))
             val fileIndex = Integer.valueOf(lineMapping.substring(fileSeparator + 1, splitIndex))
             val targetIndex = Integer.valueOf(lineMapping.substring(splitIndex + 1))
-            fileMappings[fileIndex]!!.addLineMapping(originalIndex, targetIndex)
+            fileMappings[fileIndex]!!.mapLine(originalIndex, targetIndex, true)
         }
 
-        return SMAP(fileMappings.values().toList())
+        return SMAP(fileMappings.values().map { it.toFileMapping() })
     }
 }
