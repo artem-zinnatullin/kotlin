@@ -47,14 +47,16 @@ class SMAPParser(val input: String?, val path: String) {
         val lines = input.substring(lineSectionAnchor + SMAP.LINE_SECTION.length(), input.indexOf(SMAP.END)).trim().split('\n')
         for (lineMapping in lines) {
             /*only simple mapping now*/
+            val targetSplit = lineMapping.indexOf(':')
+            val originalPart = lineMapping.substring(0, targetSplit)
+            var rangeSeparator = originalPart.indexOf(',').let { if (it < 0) targetSplit else it}
+
             val fileSeparator = lineMapping.indexOf('#')
-            val splitIndex = lineMapping.indexOf(':')
-            val originalPart = lineMapping.substring(0, fileSeparator)
-            val rangeSeparator = originalPart.indexOf(',')
-            val originalIndex = Integer.valueOf(originalPart.substring(0, if (rangeSeparator < 0) fileSeparator else rangeSeparator))
-            val range = if (rangeSeparator < 0) 1 else Integer.valueOf(originalPart.substring(rangeSeparator + 1, fileSeparator))
-            val fileIndex = Integer.valueOf(lineMapping.substring(fileSeparator + 1, splitIndex))
-            val targetIndex = Integer.valueOf(lineMapping.substring(splitIndex + 1))
+            val originalIndex = Integer.valueOf(originalPart.substring(0, fileSeparator))
+            val range = if (rangeSeparator == targetSplit) 1 else Integer.valueOf(originalPart.substring(rangeSeparator + 1, targetSplit))
+
+            val fileIndex = Integer.valueOf(lineMapping.substring(fileSeparator + 1, rangeSeparator))
+            val targetIndex = Integer.valueOf(lineMapping.substring(targetSplit + 1))
             fileMappings[fileIndex]!!.addRangeMapping(RangeMapping(originalIndex, targetIndex, range))
         }
 
