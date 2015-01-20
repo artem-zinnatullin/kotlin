@@ -17,8 +17,28 @@
 package org.jetbrains.kotlin.codegen.inline
 
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
+import org.jetbrains.kotlin.codegen.optimization.common.InsnStream
+import org.jetbrains.org.objectweb.asm.tree.LineNumberNode
+import org.jetbrains.org.objectweb.asm.Label
+import kotlin.properties.Delegates
+import java.util.Collections
 
-public class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath: String, val smap: SMAP) {
+class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath: String, classSMAP: SMAP) {
 
+    val lineNumbers = Delegates.lazy {
+        InsnStream(node.instructions.getFirst(), null).filterIsInstance(javaClass<LineNumberNode>()).map {
+            val index = Collections.binarySearch(classSMAP.intervals, RangeMapping(it.line, it.line, 1), {
+                (value, key) -> if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
+            })
+            if (index < 0) throw IllegalStateException("Unmapped lable in inlined function " + it)
+            LabelAndMapping(it, classSMAP.intervals[index])
+        }
+    };
 
+}
+
+class LabelAndMapping(val lineNumberNode: LineNumberNode, val mapper: RangeMapping) {
+    val getOriginalLine = mapper.map(lineNumberNode.line)
+    val getOriginalFileName = mapper.parent!!.name
+    val getOriginalPath = mapper.parent!!.path
 }

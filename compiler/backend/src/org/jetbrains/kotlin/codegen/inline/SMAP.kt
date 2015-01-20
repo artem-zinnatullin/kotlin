@@ -18,6 +18,9 @@ package org.jetbrains.kotlin.codegen.inline
 
 import org.jetbrains.org.objectweb.asm.MethodVisitor
 import org.jetbrains.org.objectweb.asm.Label
+import java.util
+import java.util.HashSet
+import java.util.Arrays
 
 public class SMAPBuilder(val source: String,
                          val path: String,
@@ -53,6 +56,22 @@ public class SMAPBuilder(val source: String,
 
         return header + "\n" + fileIds +"\n" + fileMappings + "\n*E\n"
     }
+
+    fun RangeMapping.toSMAP(fileId: Int): String {
+        return if (range == 1) "$source#$fileId:$dest" else "$source#$fileId,$range:$dest"
+    }
+
+    fun FileMapping.toSMAPFile(id: Int): String {
+        this.id = id;
+        return "+ $id $name\n$path"
+    }
+
+    fun FileMapping.toSMAPMapping(): String {
+        return lineMappings.fold("") {
+            (a, e) ->
+            "$a\n${e.toSMAP(id)}"
+        }
+    }
 }
 
 public object IdenticalSourceMapper: SourceMapper(-1) {
@@ -68,7 +87,9 @@ public object IdenticalSourceMapper: SourceMapper(-1) {
 
 public open class SourceMapper(val lineNumbers: Int) {
 
-    private var currentOffset = lineNumbers;
+    private var maxUsedValue = lineNumbers;
+
+    private var lastMappedWithChanges: RawFileMapping? = null;
 
     var fileMapping: MutableList<RawFileMapping> = arrayListOf();
 
@@ -77,15 +98,21 @@ public open class SourceMapper(val lineNumbers: Int) {
     }
 
     open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
-        val mappedLine = fileMapping.last().mapLine(lineNumber, currentOffset, true)
-        iv.visitLineNumber(mappedLine, start)
-        currentOffset = Math.max(currentOffset, mappedLine)
+        val fileMapping = fileMapping.last()
+        val mappedLineIndex = fileMapping.mapLine(lineNumber, maxUsedValue, true)
+        iv.visitLineNumber(mappedLineIndex, start)
+        if (mappedLineIndex > maxUsedValue) {
+            lastMappedWithChanges = fileMapping
+            maxUsedValue = mappedLineIndex
+        }
     }
 
 }
 /*Source Mapping*/
 class SMAP(fileMappings: List<FileMapping>) {
-    var fileMappings: List<FileMapping> = arrayListOf()
+    var fileMappings: List<FileMapping> = fileMappings
+
+    val intervals = fileMappings.flatMap { it -> it.lineMappings }.sortBy(RangeMapping.Comparator)
 
     class object {
         val FILE_SECTION = "*F"
@@ -93,7 +120,6 @@ class SMAP(fileMappings: List<FileMapping>) {
         val LINE_SECTION = "*L"
 
         val END = "*E"
-
     }
 }
 
@@ -139,34 +165,38 @@ class RawFileMapping(val name: String, val path: String) {
 }
 
 public class FileMapping(val name: String, val path: String) {
-    private val lineMappings = arrayListOf<RangeMapping>()
+    val lineMappings = arrayListOf<RangeMapping>()
 
     var id = -1;
 
-    fun toSMAPFile(id: Int): String {
-        this.id = id;
-        return "+ $id $name\n$path"
-    }
-
-    fun toSMAPMapping(): String {
-        return lineMappings.fold("") {
-            (a, e) ->
-            "$a\n${e.toSMAP(id)}"
-        }
-    }
-
     fun addRangeMapping(lineMapping: RangeMapping) {
         lineMappings.add(lineMapping)
+        lineMapping.parent = this
     }
 }
 
 public class RangeMapping(val source: Int, val dest: Int, var range: Int = 1) {
 
-    fun toSMAP(fileId: Int): String {
-        return if (range == 1) "$source#$fileId:$dest" else "$source#$fileId,$range:$dest"
+    var parent: FileMapping? = null;
+
+    fun contains(destLine: Int): Boolean {
+        return dest <= destLine && destLine < dest + range
     }
 
-    fun appendRangeTo() {
+    fun map(destLine: Int): Int {
+        return source + destLine - dest
+    }
 
+    object Comparator : util.Comparator<RangeMapping> {
+        override fun compare(o1: RangeMapping, o2: RangeMapping): Int {
+            if (o1 == o2) return 0
+
+            val res = o1.dest - o2.dest
+            if (res == 0) {
+                return o1.range - o2.range
+            } else {
+                return res
+            }
+        }
     }
 }
