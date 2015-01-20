@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.codegen.context.PackageContext;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.load.kotlin.PackageClassUtils;
 import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.renderer.DescriptorRenderer;
@@ -39,7 +40,6 @@ import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes;
-import org.jetbrains.kotlin.resolve.jvm.JvmClassName;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterKind;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterSignature;
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature;
@@ -175,8 +175,14 @@ public class InlineCodegen extends CallGenerator {
                     (DeserializedSimpleFunctionDescriptor) functionDescriptor);
 
             VirtualFile file = InlineCodegenUtil.getVirtualFileForCallable(containerClassId, state);
-            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(), asmMethod.getName(), asmMethod.getDescriptor(),
-                                                          JvmClassName.byClassId(containerClassId).getInternalName());
+            if (functionDescriptor.getContainingDeclaration() instanceof PackageFragmentDescriptor) {
+                /*use facade class*/
+                containerClassId = PackageClassUtils.getPackageClassId(containerClassId.getPackageFqName());
+            }
+            nodeAndSMAP = InlineCodegenUtil.getMethodNode(file.contentsToByteArray(),
+                                                          asmMethod.getName(),
+                                                          asmMethod.getDescriptor(),
+                                                          containerClassId);
 
             if (nodeAndSMAP == null) {
                 throw new RuntimeException("Couldn't obtain compiled function body for " + descriptorName(functionDescriptor));
@@ -184,7 +190,6 @@ public class InlineCodegen extends CallGenerator {
         }
         else {
             PsiElement element = DescriptorToSourceUtils.descriptorToDeclaration(functionDescriptor);
-            Type ownerType = typeMapper.mapOwner(functionDescriptor, false);
 
             if (element == null) {
                 throw new RuntimeException("Couldn't find declaration for function " + descriptorName(functionDescriptor));
@@ -216,6 +221,7 @@ public class InlineCodegen extends CallGenerator {
                                                jvmSignature);
             }
             PsiFile file = element.getContainingFile();
+            Type ownerType = typeMapper.mapOwner(functionDescriptor, false/*use facade class*/);
             nodeAndSMAP = new SMAPAndMethodNode(node, file.getName(), ownerType.getInternalName(),  smap);
             maxCalcAdapter.visitMaxs(-1, -1);
             maxCalcAdapter.visitEnd();

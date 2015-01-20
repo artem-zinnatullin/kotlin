@@ -42,6 +42,7 @@ import org.jetbrains.kotlin.psi.JetFile;
 import org.jetbrains.kotlin.resolve.DescriptorToSourceUtils;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes;
+import org.jetbrains.kotlin.resolve.jvm.JvmClassName;
 import org.jetbrains.kotlin.serialization.ProtoBuf;
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedSimpleFunctionDescriptor;
 import org.jetbrains.kotlin.serialization.jvm.JvmProtoBuf;
@@ -83,7 +84,7 @@ public class InlineCodegenUtil {
             byte[] classData,
             final String methodName,
             final String methodDescriptor,
-            String containerInternalName
+            ClassId classId
     ) throws ClassNotFoundException, IOException {
         ClassReader cr = new ClassReader(classData);
         final MethodNode[] node = new MethodNode[1];
@@ -107,7 +108,7 @@ public class InlineCodegenUtil {
             }
         }, ClassReader.SKIP_FRAMES);
 
-        return new SMAPAndMethodNode(node[0], debugInfo[0], containerInternalName, new SMAPParser(debugInfo[1], "TODO").parse());
+        return new SMAPAndMethodNode(node[0], debugInfo[0], JvmClassName.byClassId(classId).getInternalName(), new SMAPParser(debugInfo[1], "TODO").parse());
     }
 
 
