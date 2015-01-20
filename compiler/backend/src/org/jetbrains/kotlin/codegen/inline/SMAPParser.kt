@@ -25,7 +25,7 @@ class SMAPParser(val input: String?, val path: String) {
             return SMAP(listOf())
         }
 
-        val fileSectionStart = input.indexOf(SMAP.FILE_SECTION) + SMAP.FILE_SECTION.length
+        val fileSectionStart = input.indexOf(SMAP.FILE_SECTION) + SMAP.FILE_SECTION.length()
         val lineSectionAnchor = input.indexOf(SMAP.LINE_SECTION)
         val files = input.substring(fileSectionStart, lineSectionAnchor)
 
