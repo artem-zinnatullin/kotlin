@@ -22,18 +22,20 @@ import org.jetbrains.org.objectweb.asm.tree.LineNumberNode
 import org.jetbrains.org.objectweb.asm.Label
 import kotlin.properties.Delegates
 import java.util.Collections
+import kotlin.properties.ReadOnlyProperty
 
 class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath: String, classSMAP: SMAP) {
 
-    val lineNumbers = Delegates.lazy {
+    val lineNumbers =
         InsnStream(node.instructions.getFirst(), null).filterIsInstance(javaClass<LineNumberNode>()).map {
-            val index = Collections.binarySearch(classSMAP.intervals, RangeMapping(it.line, it.line, 1), {
-                (value, key) -> if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
-            })
-            if (index < 0) throw IllegalStateException("Unmapped lable in inlined function " + it)
+            val index = Collections.binarySearch(classSMAP.intervals, RangeMapping(it.line, it.line, 1)) {
+                (value, key) ->
+                if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
+            }
+            if (index < 0)
+                throw IllegalStateException("Unmapped lable in inlined function $it ${it.line}")
             LabelAndMapping(it, classSMAP.intervals[index])
-        }
-    };
+        }.toList()
 
 }
 

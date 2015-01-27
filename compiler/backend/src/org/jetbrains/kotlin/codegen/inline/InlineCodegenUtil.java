@@ -89,6 +89,9 @@ public class InlineCodegenUtil {
         ClassReader cr = new ClassReader(classData);
         final MethodNode[] node = new MethodNode[1];
         final String [] debugInfo = new String[2];
+        final int [] lines = new int [2];
+        lines[0] = Integer.MAX_VALUE;
+        lines[1] = Integer.MIN_VALUE;
         cr.accept(new ClassVisitor(API) {
 
             @Override
@@ -101,14 +104,23 @@ public class InlineCodegenUtil {
             @Override
             public MethodVisitor visitMethod(int access, @NotNull String name, @NotNull String desc, String signature, String[] exceptions) {
                 if (methodName.equals(name) && methodDescriptor.equals(desc)) {
-                    node[0] = new MethodNode(access, name, desc, signature, exceptions);
+                    node[0] = new MethodNode(API, access, name, desc, signature, exceptions) {
+
+                        @Override
+                        public void visitLineNumber(int line, Label start) {
+                            super.visitLineNumber(line, start);
+                            lines[0] = Math.min(lines[0], line);
+                            lines[1] = Math.max(lines[1], line);
+                        }
+                    };
                     return node[0];
                 }
                 return null;
             }
         }, ClassReader.SKIP_FRAMES);
 
-        return new SMAPAndMethodNode(node[0], debugInfo[0], JvmClassName.byClassId(classId).getInternalName(), new SMAPParser(debugInfo[1], "TODO").parse());
+        SMAP smap = new SMAPParser(debugInfo[1], debugInfo[0], classId.toString(), lines[0], lines[1]).parse();
+        return new SMAPAndMethodNode(node[0], debugInfo[0], JvmClassName.byClassId(classId).getInternalName(), smap);
     }
 
 

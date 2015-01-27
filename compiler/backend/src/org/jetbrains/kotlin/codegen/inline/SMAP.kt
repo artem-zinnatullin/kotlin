@@ -19,8 +19,9 @@ package org.jetbrains.kotlin.codegen.inline
 import org.jetbrains.org.objectweb.asm.MethodVisitor
 import org.jetbrains.org.objectweb.asm.Label
 import java.util
-import java.util.HashSet
-import java.util.Arrays
+import java.util.LinkedHashMap
+import java.util.Collections
+import java.util.ArrayList
 
 public class SMAPBuilder(val source: String,
                          val path: String,
@@ -35,12 +36,7 @@ public class SMAPBuilder(val source: String,
         }
 
 
-        val defaultSourceMapping = RawFileMapping(source, path)
-        for(i in 1..lineCountInOriginalFile) {
-            defaultSourceMapping.mapLine(i, i - 1, true)
-        }
-        val allMappings = arrayListOf(defaultSourceMapping.toFileMapping())
-        allMappings.addAll(fileMappings)
+        val allMappings = addDefaultSourceMapping(source, path, lineCountInOriginalFile, fileMappings)
 
         var id = 1;
 
@@ -50,11 +46,24 @@ public class SMAPBuilder(val source: String,
                       }
 
         val fileMappings = "*L" +
-                      allMappings.fold("") {(a, e) ->
-                          a + "${e.toSMAPMapping()}"
-                      }
+                           allMappings.fold("") {(a, e) ->
+                               a + "${e.toSMAPMapping()}"
+                           }
 
-        return header + "\n" + fileIds +"\n" + fileMappings + "\n*E\n"
+        return header + "\n" + fileIds + "\n" + fileMappings + "\n*E\n"
+    }
+
+
+    class object {
+        fun addDefaultSourceMapping(source: String, path: String, lineCountInOriginalFile: Int, fileMappings: List<FileMapping>): ArrayList<FileMapping> {
+            val defaultSourceMapping = RawFileMapping(source, path)
+            for (i in 1..lineCountInOriginalFile) {
+                defaultSourceMapping.mapLine(i, i - 1, true)
+            }
+            val allMappings = arrayListOf(defaultSourceMapping.toFileMapping())
+            allMappings.addAll(fileMappings)
+            return allMappings
+        }
     }
 
     fun RangeMapping.toSMAP(fileId: Int): String {
@@ -74,7 +83,7 @@ public class SMAPBuilder(val source: String,
     }
 }
 
-public object IdenticalSourceMapper: SourceMapper(-1) {
+public object IdenticalSourceMapper : SourceMapper(-1) {
 
     override fun visitSource(name: String, path: String) {
 
@@ -85,29 +94,68 @@ public object IdenticalSourceMapper: SourceMapper(-1) {
     }
 }
 
+public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAndMethodNode) : SourceMapper(parent.maxUsedValue) {
+
+    val ranges = smap.lineNumbers.map { it.mapper }.toList().distinct().toList();
+
+    //    {
+    //        smap.lineNumbers.map { it.mapper }.toList().distinct().forEach {
+    //            super.visitSource(it.parent!!.name, it.parent!!.path)
+    //        }
+    //    }
+
+    override fun visitSource(name: String, path: String) {
+        throw UnsupportedOperationException()
+    }
+
+    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+        val index = Collections.binarySearch(ranges, RangeMapping(lineNumber, lineNumber, 1)) {
+            (value, key) ->
+            if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
+        }
+        if (index < 0) {
+            parent.visitSource(smap.source,  smap.sourcePath)
+            parent.visitLineNumber(iv, lineNumber, start)
+        }
+        else {
+            val rangeMapping = ranges.get(index)
+            parent.visitSource(rangeMapping.parent!!.name, rangeMapping.parent!!.path)
+            parent.visitLineNumber(iv, rangeMapping.map(lineNumber), start)
+        }
+    }
+}
+
 public open class SourceMapper(val lineNumbers: Int) {
 
-    private var maxUsedValue = lineNumbers;
+    protected var maxUsedValue: Int = lineNumbers
+    private var lastVisited: RawFileMapping? = null
+    private var lastMappedWithChanges: RawFileMapping? = null
+    var fileMappings: LinkedHashMap<String, RawFileMapping> = linkedMapOf()
 
-    private var lastMappedWithChanges: RawFileMapping? = null;
-
-    var fileMapping: MutableList<RawFileMapping> = arrayListOf();
+    val resultMappings: List<FileMapping>
+        get() = fileMappings.values().map { it.toFileMapping() }
 
     open fun visitSource(name: String, path: String) {
-        fileMapping.add(RawFileMapping(name, path))
+        lastVisited = fileMappings.getOrPut("$name#$path", { RawFileMapping(name, path) })
     }
 
     open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
-        val fileMapping = fileMapping.last()
-        val mappedLineIndex = fileMapping.mapLine(lineNumber, maxUsedValue, true)
+        val mappedLineIndex = createMapping(lineNumber)
         iv.visitLineNumber(mappedLineIndex, start)
+    }
+
+    protected fun createMapping(lineNumber: Int): Int {
+        val fileMapping = lastVisited!!
+        val mappedLineIndex = fileMapping.mapLine(lineNumber, maxUsedValue, true)
         if (mappedLineIndex > maxUsedValue) {
             lastMappedWithChanges = fileMapping
             maxUsedValue = mappedLineIndex
         }
+        return mappedLineIndex
     }
 
 }
+
 /*Source Mapping*/
 class SMAP(fileMappings: List<FileMapping>) {
     var fileMappings: List<FileMapping> = fileMappings
@@ -145,7 +193,8 @@ class RawFileMapping(val name: String, val path: String) {
                 rangeMapping = rangeMappings.last()
                 rangeMapping.range += source - lastMappedWithNewIndex;
                 dest = lineMappings.get(lastMappedWithNewIndex) + source - lastMappedWithNewIndex;
-            } else {
+            }
+            else {
                 dest = currentIndex + 1;
                 rangeMapping = RangeMapping(source, dest)
                 rangeMappings.add(rangeMapping)
@@ -194,7 +243,8 @@ public class RangeMapping(val source: Int, val dest: Int, var range: Int = 1) {
             val res = o1.dest - o2.dest
             if (res == 0) {
                 return o1.range - o2.range
-            } else {
+            }
+            else {
                 return res
             }
         }
