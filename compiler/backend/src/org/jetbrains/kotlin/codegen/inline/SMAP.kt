@@ -224,7 +224,7 @@ public class FileMapping(val name: String, val path: String) {
     }
 }
 
-public class RangeMapping(val source: Int, val dest: Int, var range: Int = 1) {
+data public class RangeMapping(val source: Int, val dest: Int, var range: Int = 1) {
 
     var parent: FileMapping? = null;
 

@@ -205,6 +205,7 @@ public class InlineCodegen extends CallGenerator {
             //for maxLocals calculation
             MethodVisitor maxCalcAdapter = InlineCodegenUtil.wrapWithMaxLocalCalc(node);
             MethodContext methodContext = context.getParentContext().intoFunction(functionDescriptor);
+            Type ownerType = typeMapper.mapOwner(functionDescriptor, false/*use facade class*/);
             SMAP smap;
             if (callDefault) {
                 FakeMemberCodegen parentCodegen = new FakeMemberCodegen(codegen.getParentCodegen());
@@ -213,15 +214,13 @@ public class InlineCodegen extends CallGenerator {
                         methodContext, jvmSignature, functionDescriptor, isStatic, maxCalcAdapter, DefaultParameterValueLoader.DEFAULT,
                         (JetNamedFunction) element, parentCodegen, state
                 );
-                //TODO add origin identical
-                smap = new SMAP(parentCodegen.mappings);
+                smap = createSMAPWithDefaultMapping((JetNamedFunction) element, parentCodegen.getSourceMapper().getResultMappings(), ownerType.getInternalName());
             }
             else {
                 smap = generateMethodBody(maxCalcAdapter, functionDescriptor, methodContext, (JetDeclarationWithBody) element,
                                                jvmSignature, false);
             }
             PsiFile file = element.getContainingFile();
-            Type ownerType = typeMapper.mapOwner(functionDescriptor, false/*use facade class*/);
             nodeAndSMAP = new SMAPAndMethodNode(node, file.getName(), ownerType.getInternalName(),  smap);
             maxCalcAdapter.visitMaxs(-1, -1);
             maxCalcAdapter.visitEnd();
@@ -331,6 +330,14 @@ public class InlineCodegen extends CallGenerator {
         );
 
         String type = isLambda ? "stub" : typeMapper.mapOwner(descriptor, false).getInternalName();
+        return createSMAPWithDefaultMapping(declaration, parentCodegen.getSourceMapper().getResultMappings(), type);
+    }
+
+    private SMAP createSMAPWithDefaultMapping(
+            JetDeclarationWithBody declaration,
+            List<FileMapping> mappings,
+            String type
+    ) {
         PsiFile containingFile = declaration.getContainingFile();
         Integer lineNumbers = CodegenUtil.getLineNumberForElement(containingFile, true);
         assert lineNumbers != null : "Couldn't extract line count in " + containingFile;
@@ -339,15 +346,13 @@ public class InlineCodegen extends CallGenerator {
                 SMAPBuilder.OBJECT$.addDefaultSourceMapping(containingFile.getName(),
                                                             type,
                                                             lineNumbers,
-                                                            parentCodegen.getSourceMapper().getResultMappings())
+                                                            mappings)
         );
     }
 
     private static class FakeMemberCodegen extends MemberCodegen {
 
         private final MemberCodegen delegate;
-
-        List<FileMapping> mappings = new ArrayList<FileMapping>();
 
         public FakeMemberCodegen(@NotNull MemberCodegen wrapped) {
             super(wrapped);
@@ -373,11 +378,6 @@ public class InlineCodegen extends CallGenerator {
         @Override
         public NameGenerator getInlineNameGenerator() {
             return delegate.getInlineNameGenerator();
-        }
-
-        @Override
-        public void addSMAP(FileMapping fm) {
-            mappings.add(fm);
         }
     }
 
