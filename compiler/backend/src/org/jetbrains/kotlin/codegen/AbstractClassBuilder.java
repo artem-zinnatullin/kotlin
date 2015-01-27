@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.backend.common.CodegenUtil;
 import org.jetbrains.kotlin.codegen.inline.FileMapping;
 import org.jetbrains.kotlin.codegen.inline.SMAPBuilder;
 import org.jetbrains.kotlin.psi.JetElement;
+import org.jetbrains.kotlin.psi.JetFile;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.*;
 
@@ -39,6 +40,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     private final JvmSerializationBindings serializationBindings = new JvmSerializationBindings();
     private String sourceName;
+    private boolean isPackage;
     private int lineCountInOriginalFile;
 
     public static class Concrete extends AbstractClassBuilder {
@@ -104,7 +106,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void done() {
         if (sourceName != null) {
-            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, "test/" + sourceName, fileMappings, lineCountInOriginalFile).build());
+            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, (!isPackage || thisName.indexOf('$') < 0) ? thisName : thisName.substring(0, thisName.indexOf('$')), fileMappings, lineCountInOriginalFile).build());
         }
         getVisitor().visitEnd();
     }
@@ -126,6 +128,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void visitSource(@NotNull String name, @Nullable String debug, @NotNull JetElement declaration) {
         sourceName = name;
+        isPackage = declaration instanceof JetFile;
         Integer lineCount = CodegenUtil.getLineNumberForElement(declaration, true);
         assert lineCount != null : "Can't determine line count in " + declaration;
         this.lineCountInOriginalFile = lineCount;
