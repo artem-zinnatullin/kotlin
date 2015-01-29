@@ -23,7 +23,7 @@ class SMAPParser(val mappingInfo: String?, val source: String, val path: String,
     fun parse() : SMAP {
         if (mappingInfo == null || mappingInfo.isEmpty()) {
             val fm = FileMapping(source, path)
-            if (methodStartLine < methodEndLine) {
+            if (methodStartLine <= methodEndLine) {
                 //one to one
                 fm.addRangeMapping(RangeMapping(methodStartLine, methodStartLine, methodEndLine - methodStartLine + 1))
             }
