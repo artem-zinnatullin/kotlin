@@ -22,6 +22,7 @@ import java.util
 import java.util.LinkedHashMap
 import java.util.Collections
 import java.util.ArrayList
+import org.jetbrains.kotlin.codegen.SourceInfo
 
 public class SMAPBuilder(val source: String,
                          val path: String,
@@ -83,30 +84,9 @@ public class SMAPBuilder(val source: String,
     }
 }
 
-public object IdenticalSourceMapper : SourceMapper(-1) {
-
-    override fun visitSource(name: String, path: String) {
-
-    }
-
-    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
-        iv.visitLineNumber(lineNumber, start)
-    }
-}
-
-public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAndMethodNode) : SourceMapper(parent.maxUsedValue) {
+public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAndMethodNode) : SourceMapper(smap.sourceInfo) {
 
     val ranges = smap.lineNumbers.map { it.mapper }.toList().distinct().toList();
-
-    //    {
-    //        smap.lineNumbers.map { it.mapper }.toList().distinct().forEach {
-    //            super.visitSource(it.parent!!.name, it.parent!!.path)
-    //        }
-    //    }
-
-    override fun visitSource(name: String, path: String) {
-        throw UnsupportedOperationException()
-    }
 
     override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         val index = Collections.binarySearch(ranges, RangeMapping(lineNumber, lineNumber, 1)) {
@@ -125,18 +105,37 @@ public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAnd
     }
 }
 
-public open class SourceMapper(val lineNumbers: Int) {
+public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMethodNode) : NestedSourceMapper(parent, smap) {
 
-    protected var maxUsedValue: Int = lineNumbers
+}
+
+public open class SourceMapper(val sourceInfo: SourceInfo) {
+
+    protected var maxUsedValue: Int = sourceInfo.linesInFile
+
     private var lastVisited: RawFileMapping? = null
+
     private var lastMappedWithChanges: RawFileMapping? = null
-    var fileMappings: LinkedHashMap<String, RawFileMapping> = linkedMapOf()
+
+    var fileMappings: LinkedHashMap<String, RawFileMapping> = linkedMapOf();
+
+    private val origin: RawFileMapping
+    {
+        visitSource(sourceInfo.source, sourceInfo.pathOrCleanFQN)
+        origin = lastVisited!!
+        //map interval
+        (1..maxUsedValue).forEach {origin.mapLine(it, it, true) }
+    }
 
     val resultMappings: List<FileMapping>
         get() = fileMappings.values().map { it.toFileMapping() }
 
     open fun visitSource(name: String, path: String) {
         lastVisited = fileMappings.getOrPut("$name#$path", { RawFileMapping(name, path) })
+    }
+
+    open fun visitOrigin() {
+        lastVisited = origin
     }
 
     open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
@@ -158,9 +157,12 @@ public open class SourceMapper(val lineNumbers: Int) {
 
 /*Source Mapping*/
 class SMAP(fileMappings: List<FileMapping>) {
+
     var fileMappings: List<FileMapping> = fileMappings
 
     val intervals = fileMappings.flatMap { it -> it.lineMappings }.sortBy(RangeMapping.Comparator)
+
+    val default = fileMappings[0]
 
     class object {
         val FILE_SECTION = "*F"

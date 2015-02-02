@@ -51,7 +51,7 @@ public class LambdaInfo implements CapturedParamOwner, LabelOwner {
 
     private final CalculatedClosure closure;
 
-    private MethodNode node;
+    private SMAPAndMethodNode node;
 
     private List<CapturedParamDesc> capturedVars;
 
@@ -76,11 +76,11 @@ public class LambdaInfo implements CapturedParamOwner, LabelOwner {
         assert closure != null : "Closure for lambda should be not null " + expression.getText();
     }
 
-    public MethodNode getNode() {
+    public SMAPAndMethodNode getNode() {
         return node;
     }
 
-    public void setNode(MethodNode node) {
+    public void setNode(SMAPAndMethodNode node) {
         this.node = node;
     }
 

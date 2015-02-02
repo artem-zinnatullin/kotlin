@@ -216,11 +216,11 @@ public class MethodInliner {
                             new InlinedLambdaRemapper(info.getLambdaClassType().getInternalName(), nodeRemapper, lambdaParameters);
 
                     setLambdaInlining(true);
-                    MethodInliner inliner = new MethodInliner(info.getNode(), lambdaParameters,
+                    MethodInliner inliner = new MethodInliner(info.getNode().getNode(), lambdaParameters,
                                                               inliningContext.subInlineLambda(info),
                                                               newCapturedRemapper, true /*cause all calls in same module as lambda*/,
                                                               "Lambda inlining " + info.getLambdaClassType().getInternalName(),
-                                                              IdenticalSourceMapper.INSTANCE$);
+                                                              new InlineLambdaSourceMapper(sourceMapper, info.getNode()));
 
                     LocalVarRemapper remapper = new LocalVarRemapper(lambdaParameters, valueParamShift);
                     InlineResult lambdaResult = inliner.doInline(this.mv, remapper, true, info);//TODO add skipped this and receiver

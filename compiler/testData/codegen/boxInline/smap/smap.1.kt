@@ -1,12 +1,12 @@
 import builders.*
 import kotlin.InlineOption.*
 
-inline fun testAllInline(): String {
+inline fun test(): String {
     var res = "Fail"
 
     html {
         head {
-            res = "12"
+            res = "OK"
         }
     }
 
@@ -15,9 +15,7 @@ inline fun testAllInline(): String {
 
 
 fun box(): String {
-    var expected = testAllInline();
+    var expected = test();
 
-    if (expected != "O") return "fail 1: "
-
-    return "OK"
+    return expected
 }

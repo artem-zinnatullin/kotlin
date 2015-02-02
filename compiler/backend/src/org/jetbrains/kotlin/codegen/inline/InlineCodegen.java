@@ -214,11 +214,11 @@ public class InlineCodegen extends CallGenerator {
                         methodContext, jvmSignature, functionDescriptor, isStatic, maxCalcAdapter, DefaultParameterValueLoader.DEFAULT,
                         (JetNamedFunction) element, parentCodegen, state
                 );
-                smap = createSMAPWithDefaultMapping((JetNamedFunction) element, parentCodegen.getSourceMapper().getResultMappings(), ownerType.getInternalName());
+                smap = createSMAPWithDefaultMapping((JetNamedFunction) element, parentCodegen.getSourceMapper().getResultMappings());
             }
             else {
                 smap = generateMethodBody(maxCalcAdapter, functionDescriptor, methodContext, (JetDeclarationWithBody) element,
-                                               jvmSignature, false);
+                                               jvmSignature);
             }
             PsiFile file = element.getContainingFile();
             nodeAndSMAP = new SMAPAndMethodNode(node, file.getName(), ownerType.getInternalName(),  smap);
@@ -293,7 +293,7 @@ public class InlineCodegen extends CallGenerator {
         }
     }
 
-    private MethodNode generateLambdaBody(LambdaInfo info) {
+    private SMAPAndMethodNode generateLambdaBody(LambdaInfo info) {
         JetFunctionLiteral declaration = info.getFunctionLiteral();
         FunctionDescriptor descriptor = info.getFunctionDescriptor();
 
@@ -307,10 +307,10 @@ public class InlineCodegen extends CallGenerator {
 
         MethodVisitor adapter = InlineCodegenUtil.wrapWithMaxLocalCalc(methodNode);
 
-        generateMethodBody(adapter, descriptor, context, declaration, jvmMethodSignature, true);
+        SMAP smap = generateMethodBody(adapter, descriptor, context, declaration, jvmMethodSignature);
         adapter.visitMaxs(-1, -1);
-
-        return methodNode;
+        FileMapping mapping = smap.getFileMappings().get(0);
+        return new SMAPAndMethodNode(methodNode, mapping.getName(), mapping.getPath(), smap);
     }
 
     private SMAP generateMethodBody(
@@ -318,8 +318,7 @@ public class InlineCodegen extends CallGenerator {
             @NotNull FunctionDescriptor descriptor,
             @NotNull MethodContext context,
             @NotNull JetDeclarationWithBody declaration,
-            @NotNull JvmMethodSignature jvmMethodSignature,
-            boolean isLambda
+            @NotNull JvmMethodSignature jvmMethodSignature
     ) {
         FakeMemberCodegen parentCodegen = new FakeMemberCodegen(codegen.getParentCodegen());
         FunctionCodegen.generateMethodBody(
@@ -329,25 +328,18 @@ public class InlineCodegen extends CallGenerator {
             parentCodegen
         );
 
-        String type = isLambda ? "stub" : typeMapper.mapOwner(descriptor, false).getInternalName();
-        return createSMAPWithDefaultMapping(declaration, parentCodegen.getSourceMapper().getResultMappings(), type);
+        return createSMAPWithDefaultMapping(declaration, parentCodegen.getSourceMapper().getResultMappings());
     }
 
     private SMAP createSMAPWithDefaultMapping(
             JetDeclarationWithBody declaration,
-            List<FileMapping> mappings,
-            String type
+            List<FileMapping> mappings
     ) {
         PsiFile containingFile = declaration.getContainingFile();
         Integer lineNumbers = CodegenUtil.getLineNumberForElement(containingFile, true);
         assert lineNumbers != null : "Couldn't extract line count in " + containingFile;
 
-        return new SMAP(
-                SMAPBuilder.OBJECT$.addDefaultSourceMapping(containingFile.getName(),
-                                                            type,
-                                                            lineNumbers,
-                                                            mappings)
-        );
+        return new SMAP(mappings);
     }
 
     private static class FakeMemberCodegen extends MemberCodegen {

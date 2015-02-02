@@ -722,6 +722,12 @@ public class BlackBoxInlineCodegenTestGenerated extends AbstractBlackBoxCodegenT
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/codegen/boxInline/smap"), Pattern.compile("^(.+)\\.1.kt$"), true);
         }
 
+        @TestMetadata("assertion.1.kt")
+        public void testAssertion() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/assertion.1.kt");
+            doTestMultiFileWithInlineCheck(fileName);
+        }
+
         @TestMetadata("smap.1.kt")
         public void testSmap() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/smap.1.kt");

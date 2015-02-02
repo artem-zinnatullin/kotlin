@@ -480,10 +480,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     public SourceMapper getSourceMapper() {
         if (sourceMapper == null) {
-            assert element != null : "Couldn't create source mapper for null element " + this;
-            Integer lineNumbers = CodegenUtil.getLineNumberForElement(element.getContainingFile(), true);
-            assert lineNumbers != null : "Couldn't extract line count in " + element.getContainingFile();
-            sourceMapper = new SourceMapper(lineNumbers);
+            sourceMapper = new SourceMapper(SourceInfo.OBJECT$.createInfo(element, v.getThisName()));
         }
         return sourceMapper;
     }
