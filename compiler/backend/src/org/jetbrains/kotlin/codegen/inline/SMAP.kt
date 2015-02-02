@@ -37,7 +37,7 @@ public class SMAPBuilder(val source: String,
         }
 
 
-        val allMappings = addDefaultSourceMapping(source, path, lineCountInOriginalFile, fileMappings)
+        val allMappings = fileMappings//addDefaultSourceMapping(source, path, lineCountInOriginalFile, fileMappings)
 
         var id = 1;
 
@@ -107,19 +107,38 @@ public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAnd
 
 public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMethodNode) : NestedSourceMapper(parent, smap) {
 
+    override fun visitSource(name: String, path: String) {
+        if (isOriginal()) {
+            parent.visitOrigin()
+        } else {
+            super.visitSource(name, path)
+        }
+    }
+
+    private fun isOriginal(): Boolean {
+        return lastVisited == origin
+    }
+
+    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+        if (isOriginal()) {
+            parent.visitLineNumber(iv, lineNumber, start)
+        } else {
+            super.visitLineNumber(iv, lineNumber, start)
+        }
+    }
 }
 
 public open class SourceMapper(val sourceInfo: SourceInfo) {
 
     protected var maxUsedValue: Int = sourceInfo.linesInFile
 
-    private var lastVisited: RawFileMapping? = null
+    protected  var lastVisited: RawFileMapping? = null
 
     private var lastMappedWithChanges: RawFileMapping? = null
 
     var fileMappings: LinkedHashMap<String, RawFileMapping> = linkedMapOf();
 
-    private val origin: RawFileMapping
+    protected  val origin: RawFileMapping
     {
         visitSource(sourceInfo.source, sourceInfo.pathOrCleanFQN)
         origin = lastVisited!!
