@@ -24,7 +24,7 @@ fun test() {
     val platformJ = J.staticJ
 
     platformNN.foo()
-    platformN.foo()
+    <!NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS!>platformN<!>.foo()
     platformJ.foo()
 
     platformNN.bar()
