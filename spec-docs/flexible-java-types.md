@@ -121,3 +121,17 @@ Constructs in question: anything that provides an expected type, i.e.
  - explicit expected type (foo: Bar)
  - for booleans: if (foo), foo || bar, foo && bar (!foo is a call)
  - argument of throw
+
+## Warnings on nullability misuse
+
+Let's say a value is *definitely nullable* when
+ - it has a nullable type in Kotlin (and smart-casts do not make it not-null), or
+ - it has a platform type which bares a `@Nullable` annotation, or
+ - it has a platform type and we know it is `null` from `DataFlowInfo`
+
+We want warnings in the following situations:
+ - a definitely nullable value is assigned to a non-null type (inflexible non-null type or a platform type with `@NotNull` annotation)
+   - e.g. assigned to a variable, or
+   - passed to a method whose parameter is not-null, etc.
+ - a definitely nullable value is dereferenced with a dot
+ - ...
