@@ -722,9 +722,27 @@ public class CompileKotlinAgainstInlineKotlinTestGenerated extends AbstractCompi
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/codegen/boxInline/smap"), Pattern.compile("^(.+)\\.1.kt$"), true);
         }
 
+        @TestMetadata("anonymousLambda.1.kt")
+        public void testAnonymousLambda() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/anonymousLambda.1.kt");
+            doBoxTestWithInlineCheck(fileName);
+        }
+
+        @TestMetadata("anonymousObject.1.kt")
+        public void testAnonymousObject() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/anonymousObject.1.kt");
+            doBoxTestWithInlineCheck(fileName);
+        }
+
         @TestMetadata("assertion.1.kt")
         public void testAssertion() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/assertion.1.kt");
+            doBoxTestWithInlineCheck(fileName);
+        }
+
+        @TestMetadata("oneFile.1.kt")
+        public void testOneFile() throws Exception {
+            String fileName = JetTestUtils.navigationMetadata("compiler/testData/codegen/boxInline/smap/oneFile.1.kt");
             doBoxTestWithInlineCheck(fileName);
         }
 
