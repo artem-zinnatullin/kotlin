@@ -101,8 +101,8 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         this.parentCodegen = parentCodegen;
     }
 
-    protected MemberCodegen(@NotNull MemberCodegen<T> wrapped) {
-        this(wrapped.state, wrapped.getParentCodegen(), wrapped.getContext(), wrapped.element, wrapped.v);
+    protected MemberCodegen(@NotNull MemberCodegen<T> wrapped, T declaration, FieldOwnerContext codegenContext) {
+        this(wrapped.state, wrapped.getParentCodegen(), codegenContext, declaration, wrapped.v);
     }
 
     public void generate() {
@@ -141,10 +141,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         writeInnerClasses();
 
         if (sourceMapper != null) {
-            Collection<RawFileMapping> mapping = sourceMapper.getFileMappings().values();
-            for (RawFileMapping fileMapping : mapping) {
-                v.addSMAP(fileMapping.toFileMapping());
-            }
+            SourceMapper.OBJECT$.flushToClassBuilder(sourceMapper, v);
         }
 
         v.done();
@@ -480,7 +477,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     public SourceMapper getSourceMapper() {
         if (sourceMapper == null) {
-            sourceMapper = new SourceMapper(SourceInfo.OBJECT$.createInfo(element, v.getThisName()));
+            sourceMapper = new DefaultSourceMapper(SourceInfo.OBJECT$.createInfo(element, v.getThisName()), null);
         }
         return sourceMapper;
     }

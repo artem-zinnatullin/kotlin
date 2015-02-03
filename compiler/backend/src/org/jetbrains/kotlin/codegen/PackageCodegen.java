@@ -112,7 +112,7 @@ public class PackageCodegen {
                 );
                 //We don't generate any source information for package with multiple files
                 if (sourceFile != null) {
-                    v.visitSource(sourceFile.getName(), null, sourceFile);
+                    v.visitSource(sourceFile.getName(), null);
                 }
                 return v;
             }

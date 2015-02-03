@@ -25,8 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.codegen.binding.CalculatedClosure;
 import org.jetbrains.kotlin.codegen.context.ClassContext;
-import org.jetbrains.kotlin.codegen.context.CodegenContext;
-import org.jetbrains.kotlin.codegen.context.MethodContext;
+import org.jetbrains.kotlin.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.kotlin.codegen.signature.BothSignatureWriter;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
@@ -149,23 +148,12 @@ public class ClosureCodegen extends MemberCodegen<JetElement> {
                       superInterfaceAsmTypes
         );
 
+        InlineCodegenUtil.initDefaultSourceMappingIfNeeded(context, this, state);
 
-        if (state.isInlineEnabled()) {
-            CodegenContext<?> parentContext = context.getParentContext();
-            while (parentContext != null) {
-                if (parentContext instanceof MethodContext) {
-                    if (((MethodContext) parentContext).isInlineFunction()) {
-                        //just init default one to one mapping
-                        getSourceMapper();
-                        break;
-                    }
-                }
-                parentContext = parentContext.getParentContext();
-            }
-        }
-
-        v.visitSource(element.getContainingFile().getName(), null, element);
+        v.visitSource(element.getContainingFile().getName(), null);
     }
+
+
 
     @Nullable
     @Override

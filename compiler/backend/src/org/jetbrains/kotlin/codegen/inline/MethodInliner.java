@@ -83,7 +83,7 @@ public class MethodInliner {
             @NotNull FieldRemapper nodeRemapper,
             boolean isSameModule,
             @NotNull String errorPrefix,
-            SourceMapper sourceMapper
+            @NotNull SourceMapper sourceMapper
     ) {
         this.node = node;
         this.parameters = parameters;

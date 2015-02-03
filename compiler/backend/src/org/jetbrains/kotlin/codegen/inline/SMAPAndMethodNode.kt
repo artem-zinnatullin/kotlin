@@ -25,7 +25,7 @@ import java.util.Collections
 import kotlin.properties.ReadOnlyProperty
 import org.jetbrains.kotlin.codegen.SourceInfo
 
-class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath: String, classSMAP: SMAP) {
+class SMAPAndMethodNode(val node: MethodNode, val classSMAP: SMAP) {
 
     val lineNumbers =
         InsnStream(node.instructions.getFirst(), null).filterIsInstance(javaClass<LineNumberNode>()).map {
@@ -38,8 +38,7 @@ class SMAPAndMethodNode(val node: MethodNode, val source: String, val sourcePath
             LabelAndMapping(it, classSMAP.intervals[index])
         }.toList()
 
-    val sourceInfo: SourceInfo =  SourceInfo(source, sourcePath, classSMAP.default.lineMappings[0].source + classSMAP.default.lineMappings[0].range - 1)
-
+    val ranges = lineNumbers.map { it.mapper }.toList().distinct().toList();
 }
 
 class LabelAndMapping(val lineNumberNode: LineNumberNode, val mapper: RangeMapping) {

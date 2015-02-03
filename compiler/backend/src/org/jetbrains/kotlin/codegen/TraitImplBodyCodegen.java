@@ -49,7 +49,7 @@ public class TraitImplBodyCodegen extends ClassBodyCodegen {
                       "java/lang/Object",
                       ArrayUtil.EMPTY_STRING_ARRAY
         );
-        v.visitSource(myClass.getContainingFile().getName(), null, myClass);
+        v.visitSource(myClass.getContainingFile().getName(), null);
     }
 
     @Override

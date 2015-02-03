@@ -81,4 +81,9 @@ public class RemappingClassBuilder extends DelegatingClassBuilder {
     public ClassVisitor getVisitor() {
         return new RemappingClassAdapter(builder.getVisitor(), remapper);
     }
+
+    @Override
+    public void addSMAP(FileMapping mapping) {
+        builder.addSMAP(mapping);
+    }
 }

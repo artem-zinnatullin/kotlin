@@ -32,6 +32,7 @@ import org.jetbrains.org.objectweb.asm.tree.FieldInsnNode;
 import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import org.jetbrains.org.objectweb.asm.tree.VarInsnNode;
 
+import javax.xml.transform.Source;
 import java.util.*;
 
 import static org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin.NO_ORIGIN;
@@ -43,6 +44,13 @@ public class AnonymousObjectTransformer {
     protected final JetTypeMapper typeMapper;
 
     private MethodNode constructor;
+
+    private String sourceInfo;
+    private String debugInfo;
+    private SMAP smap;
+
+    private SourceMapper sourceMapper;
+    private SourceMapper nestedSourceMapper;
 
     private final InliningContext inliningContext;
 
@@ -140,7 +148,25 @@ public class AnonymousObjectTransformer {
                     return super.visitField(access, name, desc, signature, value);
                 }
             }
+
+            @Override
+            public void visitSource(String source, String debug) {
+                super.visitSource(source, debug);
+                sourceInfo = source;
+                debugInfo = debug;
+            }
         }, ClassReader.SKIP_FRAMES);
+
+        if (!inliningContext.isInliningLambda) {
+            assert debugInfo != null && !debugInfo.isEmpty() : "Debug info is null for " + oldObjectType;
+            smap = new SMAPParser(debugInfo, sourceInfo, "notused", 1, 2).parse();
+            sourceMapper = SourceMapper.OBJECT$.createFromSmap(smap);
+            nestedSourceMapper = new NestedSourceMapper(sourceMapper, smap.getIntervals(), smap.getSourceInfo());
+        } else {
+            classBuilder.visitSource(sourceInfo, debugInfo);
+            sourceMapper = IdenticalSourceMapper.INSTANCE$;
+            nestedSourceMapper = IdenticalSourceMapper.INSTANCE$;
+        }
 
         ParametersBuilder allCapturedParamBuilder = ParametersBuilder.newBuilder();
         ParametersBuilder constructorParamBuilder = ParametersBuilder.newBuilder();
@@ -158,6 +184,8 @@ public class AnonymousObjectTransformer {
                 generateConstructorAndFields(classBuilder, allCapturedParamBuilder, constructorParamBuilder, anonymousObjectGen, parentRemapper, additionalFakeParams);
 
         result.addAllClassesToRemove(constructorResult);
+
+        SourceMapper.OBJECT$.flushToClassBuilder(sourceMapper, classBuilder);
 
         classBuilder.done();
 
@@ -183,7 +211,7 @@ public class AnonymousObjectTransformer {
 
         MethodInliner inliner = new MethodInliner(sourceNode, parameters, inliningContext.subInline(inliningContext.nameGenerator.subGenerator("lambda")),
                                                   remapper, isSameModule, "Transformer for " + anonymousObjectGen.getOwnerInternalName(),
-                                                  null);
+                                                  nestedSourceMapper);
 
         InlineResult result = inliner.doInline(resultVisitor, new LocalVarRemapper(parameters, 0), false, LabelOwner.NOT_APPLICABLE);
         result.getReifiedTypeParametersUsages().mergeAll(typeParametersToReify);
@@ -272,7 +300,7 @@ public class AnonymousObjectTransformer {
 
         MethodInliner inliner = new MethodInliner(constructor, constructorParameters, inliningContext.subInline(inliningContext.nameGenerator.subGenerator("lambda")),
                                                   remapper, isSameModule, "Transformer for constructor of " + anonymousObjectGen.getOwnerInternalName(),
-                                                  null);
+                                                  nestedSourceMapper);
         InlineResult result = inliner.doInline(capturedFieldInitializer, new LocalVarRemapper(constructorParameters, 0), false,
                                                LabelOwner.NOT_APPLICABLE);
         constructorVisitor.visitMaxs(-1, -1);

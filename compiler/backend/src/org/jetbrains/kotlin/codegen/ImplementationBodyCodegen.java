@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.backend.common.DataClassMethodGenerator;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.codegen.binding.MutableClosure;
 import org.jetbrains.kotlin.codegen.context.*;
+import org.jetbrains.kotlin.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.kotlin.codegen.signature.BothSignatureWriter;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
@@ -206,7 +207,9 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
                       signature.getSuperclassName(),
                       ArrayUtil.toStringArray(interfaces)
         );
-        v.visitSource(myClass.getContainingFile().getName(), null, myClass);
+        v.visitSource(myClass.getContainingFile().getName(), null);
+
+        InlineCodegenUtil.initDefaultSourceMappingIfNeeded(context, this, state);
 
         writeEnclosingMethod();
 

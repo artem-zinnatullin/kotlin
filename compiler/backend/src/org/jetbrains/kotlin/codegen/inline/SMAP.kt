@@ -23,11 +23,11 @@ import java.util.LinkedHashMap
 import java.util.Collections
 import java.util.ArrayList
 import org.jetbrains.kotlin.codegen.SourceInfo
+import org.jetbrains.kotlin.codegen.ClassBuilder
 
 public class SMAPBuilder(val source: String,
                          val path: String,
-                         val fileMappings: List<FileMapping>,
-                         val lineCountInOriginalFile: Int) {
+                         val fileMappings: List<FileMapping>) {
 
     val header = "SMAP\n$source\nKotlin\n*S Kotlin"
 
@@ -84,9 +84,7 @@ public class SMAPBuilder(val source: String,
     }
 }
 
-public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAndMethodNode) : SourceMapper(smap.sourceInfo) {
-
-    val ranges = smap.lineNumbers.map { it.mapper }.toList().distinct().toList();
+public open class NestedSourceMapper(parent: SourceMapper, val ranges: List<RangeMapping>, sourceInfo: SourceInfo) : DefaultSourceMapper(sourceInfo, parent) {
 
     override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         val index = Collections.binarySearch(ranges, RangeMapping(lineNumber, lineNumber, 1)) {
@@ -94,22 +92,23 @@ public open class NestedSourceMapper(val parent: SourceMapper, val smap: SMAPAnd
             if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
         }
         if (index < 0) {
-            parent.visitSource(smap.source,  smap.sourcePath)
+            parent!!.visitSource(sourceInfo.source,  sourceInfo.pathOrCleanFQN)
             parent.visitLineNumber(iv, lineNumber, start)
         }
         else {
             val rangeMapping = ranges.get(index)
-            parent.visitSource(rangeMapping.parent!!.name, rangeMapping.parent!!.path)
+            parent!!.visitSource(rangeMapping.parent!!.name, rangeMapping.parent!!.path)
             parent.visitLineNumber(iv, rangeMapping.map(lineNumber), start)
         }
     }
 }
 
-public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMethodNode) : NestedSourceMapper(parent, smap) {
+public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMethodNode) : NestedSourceMapper(parent, smap.ranges, smap.classSMAP.sourceInfo) {
 
     override fun visitSource(name: String, path: String) {
         if (isOriginal()) {
-            parent.visitOrigin()
+            parent!!.visitOrigin()
+            super.visitSource(name, path)
         } else {
             super.visitSource(name, path)
         }
@@ -121,50 +120,101 @@ public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMe
 
     override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         if (isOriginal()) {
-            parent.visitLineNumber(iv, lineNumber, start)
+            parent!!.visitLineNumber(iv, lineNumber, start)
         } else {
             super.visitLineNumber(iv, lineNumber, start)
         }
     }
 }
+trait SourceMapper {
 
-public open class SourceMapper(val sourceInfo: SourceInfo) {
+    val resultMappings: List<FileMapping>
+
+    open fun visitSource(name: String, path: String) {
+        throw RuntimeException("fail")
+    }
+
+    open fun visitOrigin() {
+        throw RuntimeException("fail")
+    }
+
+    open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+        throw RuntimeException("fail")
+    }
+
+    class object {
+
+        fun flushToClassBuilder(mapper: SourceMapper, v: ClassBuilder) {
+            val mapping = mapper.resultMappings
+            for (fileMapping in mapping) {
+                v.addSMAP(fileMapping)
+            }
+        }
+
+        fun createFromSmap(smap: SMAP): DefaultSourceMapper {
+            val sourceMapper = DefaultSourceMapper(smap.sourceInfo, null)
+            smap.fileMappings.forEach { fileMapping ->
+                sourceMapper.visitSource(fileMapping.name, fileMapping.path)
+                fileMapping.lineMappings.forEach {
+                    sourceMapper.lastVisited!!.mapNewInterval(it.source, it.dest, it.range)
+                }
+            }
+
+            return sourceMapper
+        }
+    }
+}
+
+public object IdenticalSourceMapper : SourceMapper {
+    override val resultMappings: List<FileMapping>
+        get() = emptyList()
+
+    override fun visitSource(name: String, path: String) {}
+
+    override fun visitOrigin() {}
+
+    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+        iv.visitLineNumber(lineNumber, start)
+    }
+}
+
+public open class DefaultSourceMapper(val sourceInfo: SourceInfo, val parent: SourceMapper?): SourceMapper {
 
     protected var maxUsedValue: Int = sourceInfo.linesInFile
 
-    protected  var lastVisited: RawFileMapping? = null
+    var lastVisited: RawFileMapping? = null
 
     private var lastMappedWithChanges: RawFileMapping? = null
 
     var fileMappings: LinkedHashMap<String, RawFileMapping> = linkedMapOf();
 
-    protected  val origin: RawFileMapping
+    protected val origin: RawFileMapping
     {
         visitSource(sourceInfo.source, sourceInfo.pathOrCleanFQN)
         origin = lastVisited!!
         //map interval
-        (1..maxUsedValue).forEach {origin.mapLine(it, it, true) }
+        (1..maxUsedValue).forEach {origin.mapLine(it, it - 1, true) }
     }
 
-    val resultMappings: List<FileMapping>
+    override val resultMappings: List<FileMapping>
         get() = fileMappings.values().map { it.toFileMapping() }
 
-    open fun visitSource(name: String, path: String) {
+    override fun visitSource(name: String, path: String) {
         lastVisited = fileMappings.getOrPut("$name#$path", { RawFileMapping(name, path) })
     }
 
-    open fun visitOrigin() {
+    override open fun visitOrigin() {
         lastVisited = origin
     }
 
-    open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+    override open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         val mappedLineIndex = createMapping(lineNumber)
         iv.visitLineNumber(mappedLineIndex, start)
     }
 
     protected fun createMapping(lineNumber: Int): Int {
         val fileMapping = lastVisited!!
-        val mappedLineIndex = fileMapping.mapLine(lineNumber, maxUsedValue, true)
+        val mappedLineIndex = fileMapping.mapLine(lineNumber, maxUsedValue, true /*lastMappedWithChanges == lastVisited*/)
         if (mappedLineIndex > maxUsedValue) {
             lastMappedWithChanges = fileMapping
             maxUsedValue = mappedLineIndex
@@ -172,6 +222,20 @@ public open class SourceMapper(val sourceInfo: SourceInfo) {
         return mappedLineIndex
     }
 
+
+    class object {
+        fun createFromSmap(smap: SMAP): DefaultSourceMapper {
+            val sourceMapper = DefaultSourceMapper(smap.sourceInfo, null)
+            smap.fileMappings.forEach { fileMapping ->
+                sourceMapper.visitSource(fileMapping.name, fileMapping.path)
+                fileMapping.lineMappings.forEach {
+                    sourceMapper.lastVisited!!.mapNewInterval(it.source, it.dest, it.range)
+                }
+            }
+
+            return sourceMapper
+        }
+    }
 }
 
 /*Source Mapping*/
@@ -182,6 +246,18 @@ class SMAP(fileMappings: List<FileMapping>) {
     val intervals = fileMappings.flatMap { it -> it.lineMappings }.sortBy(RangeMapping.Comparator)
 
     val default = fileMappings[0]
+
+    {
+        assert(!fileMappings.isEmpty())
+    }
+
+    val sourceInfo: SourceInfo
+    {
+        val originalMapping = default
+        val defaultMapping = originalMapping.lineMappings[0]
+        sourceInfo = SourceInfo(originalMapping.name, originalMapping.path, defaultMapping.source + defaultMapping.range - 1)
+    }
+
 
     class object {
         val FILE_SECTION = "*F"
@@ -226,6 +302,15 @@ class RawFileMapping(val name: String, val path: String) {
         }
 
         return dest
+    }
+
+    fun mapNewInterval(source: Int, dest: Int, range: Int) {
+        val rangeMapping = RangeMapping(source, dest, range)
+        rangeMappings.add(rangeMapping)
+
+        (source..(source + range - 1)).forEach {
+            lineMappings.put(source, dest)
+        }
     }
 
     private fun couldFoldInRange(first: Int, second: Int): Boolean {

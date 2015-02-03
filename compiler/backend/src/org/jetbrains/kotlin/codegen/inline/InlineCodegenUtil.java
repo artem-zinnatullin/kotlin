@@ -24,8 +24,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.kotlin.backend.common.output.OutputFile;
+import org.jetbrains.kotlin.codegen.MemberCodegen;
 import org.jetbrains.kotlin.codegen.binding.CodegenBinding;
 import org.jetbrains.kotlin.codegen.context.CodegenContext;
+import org.jetbrains.kotlin.codegen.context.MethodContext;
 import org.jetbrains.kotlin.codegen.context.PackageContext;
 import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.codegen.state.JetTypeMapper;
@@ -120,7 +122,23 @@ public class InlineCodegenUtil {
         }, ClassReader.SKIP_FRAMES);
 
         SMAP smap = new SMAPParser(debugInfo[1], debugInfo[0], classId.toString(), lines[0], lines[1]).parse();
-        return new SMAPAndMethodNode(node[0], debugInfo[0], JvmClassName.byClassId(classId).getInternalName(), smap);
+        return new SMAPAndMethodNode(node[0], smap);
+    }
+
+    public static void initDefaultSourceMappingIfNeeded(@NotNull CodegenContext context, @NotNull MemberCodegen codegen, @NotNull GenerationState state) {
+        if (state.isInlineEnabled()) {
+            CodegenContext<?> parentContext = context.getParentContext();
+            while (parentContext != null) {
+                if (parentContext instanceof MethodContext) {
+                    if (((MethodContext) parentContext).isInlineFunction()) {
+                        //just init default one to one mapping
+                        codegen.getSourceMapper();
+                        break;
+                    }
+                }
+                parentContext = parentContext.getParentContext();
+            }
+        }
     }
 
 

@@ -19,11 +19,8 @@ package org.jetbrains.kotlin.codegen;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.backend.common.CodegenUtil;
 import org.jetbrains.kotlin.codegen.inline.FileMapping;
 import org.jetbrains.kotlin.codegen.inline.SMAPBuilder;
-import org.jetbrains.kotlin.psi.JetElement;
-import org.jetbrains.kotlin.psi.JetFile;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.*;
 
@@ -40,8 +37,7 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     private final JvmSerializationBindings serializationBindings = new JvmSerializationBindings();
     private String sourceName;
-    private boolean isPackage;
-    private int lineCountInOriginalFile;
+    private String debugInfo;
 
     public static class Concrete extends AbstractClassBuilder {
         private final ClassVisitor v;
@@ -105,9 +101,14 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
 
     @Override
     public void done() {
-        if (sourceName != null) {
-            getVisitor().visitSource(sourceName, new SMAPBuilder(sourceName, (!isPackage || thisName.indexOf('$') < 0) ? thisName : thisName.substring(0, thisName.indexOf('$')), fileMappings, lineCountInOriginalFile).build());
+        if (!fileMappings.isEmpty()) {
+            FileMapping origin = fileMappings.get(0);
+            assert sourceName == null || origin.getName().equals(sourceName) : "Error " + origin.getName() +  " != "  + sourceName ;
+            getVisitor().visitSource(origin.getName(), new SMAPBuilder(origin.getName(), origin.getPath(), fileMappings).build());
+        } else {
+            getVisitor().visitSource(sourceName, debugInfo);
         }
+
         getVisitor().visitEnd();
     }
 
@@ -126,12 +127,9 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void visitSource(@NotNull String name, @Nullable String debug, @NotNull JetElement declaration) {
+    public void visitSource(@NotNull String name, @Nullable String debug) {
         sourceName = name;
-        isPackage = declaration instanceof JetFile;
-        Integer lineCount = CodegenUtil.getLineNumberForElement(declaration, true);
-        assert lineCount != null : "Can't determine line count in " + declaration;
-        this.lineCountInOriginalFile = lineCount;
+        debugInfo = debug;
     }
 
     @Override
