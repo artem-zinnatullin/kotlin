@@ -137,7 +137,7 @@ public class JetPsiUnifier(
         val DEFAULT = JetPsiUnifier()
     }
 
-    private inner class Context(
+    public inner class Context(
             val originalTarget: JetPsiRange,
             val originalPattern: JetPsiRange
     ) {
