@@ -93,12 +93,12 @@ public open class NestedSourceMapper(parent: SourceMapper, val ranges: List<Rang
         }
         if (index < 0) {
             parent!!.visitSource(sourceInfo.source,  sourceInfo.pathOrCleanFQN)
-            parent.visitLineNumber(iv, lineNumber, start)
+            parent!!.visitLineNumber(iv, lineNumber, start)
         }
         else {
             val rangeMapping = ranges.get(index)
             parent!!.visitSource(rangeMapping.parent!!.name, rangeMapping.parent!!.path)
-            parent.visitLineNumber(iv, rangeMapping.map(lineNumber), start)
+            parent!!.visitLineNumber(iv, rangeMapping.map(lineNumber), start)
         }
     }
 }
@@ -106,29 +106,43 @@ public open class NestedSourceMapper(parent: SourceMapper, val ranges: List<Rang
 public open class InlineLambdaSourceMapper(parent: SourceMapper, smap: SMAPAndMethodNode) : NestedSourceMapper(parent, smap.ranges, smap.classSMAP.sourceInfo) {
 
     override fun visitSource(name: String, path: String) {
-        if (isOriginal()) {
+        super.visitSource(name, path)
+        if (isOriginalVisited()) {
             parent!!.visitOrigin()
-            super.visitSource(name, path)
-        } else {
-            super.visitSource(name, path)
         }
     }
 
-    private fun isOriginal(): Boolean {
+    override fun visitOrigin() {
+        super.visitOrigin()
+        parent!!.visitOrigin()
+    }
+
+    private fun isOriginalVisited(): Boolean {
         return lastVisited == origin
     }
 
     override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
-        if (isOriginal()) {
-            parent!!.visitLineNumber(iv, lineNumber, start)
-        } else {
-            super.visitLineNumber(iv, lineNumber, start)
+        val index = Collections.binarySearch(ranges, RangeMapping(lineNumber, lineNumber, 1)) {
+            (value, key) ->
+            if (value.contains(key.dest)) 0 else RangeMapping.Comparator.compare(value, key)
         }
+        if (index >= 0) {
+            val fmapping = ranges.get(index).parent!!
+            if (fmapping.path == origin.path && fmapping.name == origin.name) {
+                parent!!.visitOrigin()
+                parent!!.visitLineNumber(iv, lineNumber, start)
+                return
+            }
+        }
+
+        super.visitLineNumber(iv, lineNumber, start)
     }
 }
+
 trait SourceMapper {
 
     val resultMappings: List<FileMapping>
+    val parent: SourceMapper?
 
     open fun visitSource(name: String, path: String) {
         throw RuntimeException("fail")
@@ -169,6 +183,9 @@ public object IdenticalSourceMapper : SourceMapper {
     override val resultMappings: List<FileMapping>
         get() = emptyList()
 
+    override val parent: SourceMapper?
+        get() = null
+
     override fun visitSource(name: String, path: String) {}
 
     override fun visitOrigin() {}
@@ -178,7 +195,7 @@ public object IdenticalSourceMapper : SourceMapper {
     }
 }
 
-public open class DefaultSourceMapper(val sourceInfo: SourceInfo, val parent: SourceMapper?): SourceMapper {
+public open class DefaultSourceMapper(val sourceInfo: SourceInfo, override val parent: SourceMapper?): SourceMapper {
 
     protected var maxUsedValue: Int = sourceInfo.linesInFile
 
@@ -203,11 +220,11 @@ public open class DefaultSourceMapper(val sourceInfo: SourceInfo, val parent: So
         lastVisited = fileMappings.getOrPut("$name#$path", { RawFileMapping(name, path) })
     }
 
-    override open fun visitOrigin() {
+    override fun visitOrigin() {
         lastVisited = origin
     }
 
-    override open fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
+    override fun visitLineNumber(iv: MethodVisitor, lineNumber: Int, start: Label) {
         val mappedLineIndex = createMapping(lineNumber)
         iv.visitLineNumber(mappedLineIndex, start)
     }
@@ -296,6 +313,10 @@ class RawFileMapping(val name: String, val path: String) {
                 rangeMapping = RangeMapping(source, dest)
                 rangeMappings.add(rangeMapping)
             }
+
+//            if (dest > 21 && name.contains("1.kt")) {
+//                println("x")
+//            }
 
             lineMappings.put(source, dest)
             lastMappedWithNewIndex = source;
