@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.JetElement
 import org.jetbrains.kotlin.backend.common.CodegenUtil
 import org.jetbrains.kotlin.psi.JetFile
+import org.jetbrains.kotlin.psi.JetNamedFunction
 
 data public class SourceInfo(val source: String, val pathOrCleanFQN: String, val linesInFile: Int) {
 
@@ -29,7 +30,10 @@ data public class SourceInfo(val source: String, val pathOrCleanFQN: String, val
             val lineNumbers = CodegenUtil.getLineNumberForElement(element!!.getContainingFile(), true)
             assert(lineNumbers != null) { "Couldn't extract line count in " + element.getContainingFile() }
 
-            val cleanedClassFqName = if (element !is JetFile || internalClassName.indexOf('$') < 0) internalClassName else internalClassName.substring(0, internalClassName.indexOf('$'))
+            //TODO hack condition for package parts cleaning
+            val isTopLevel = element is JetFile || (element is JetNamedFunction && element.getParent() is JetFile)
+            val dollarIndex = internalClassName.indexOf('$')
+            val cleanedClassFqName = if (!isTopLevel || dollarIndex < 0) internalClassName else internalClassName.substring(0, dollarIndex)
 
             return SourceInfo(element.getContainingJetFile().getName(), cleanedClassFqName, lineNumbers)
         }
